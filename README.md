@@ -1,6 +1,6 @@
 # MingBay 21 Golden Game Jam
 
-这是一个使用 Unity `2023.2.20f1` 制作的 Game Jam 项目。
+这是一个使用 Unity `6000.3.6f1` 制作的 Game Jam 项目。
 
 本文档面向第一次参加多人 Git 项目的成员，介绍本项目的分支用途和日常操作。命令需要在项目目录 `MW 72h` 中执行。
 
