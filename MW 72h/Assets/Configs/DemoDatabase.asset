@@ -14,3 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::MingBay.Data.DemoDatabase
   tickets:
   - {fileID: 11400000, guid: 0424ac009c33fe74faddeed8d4efcf93, type: 2}
+  - {fileID: 11400000, guid: 3f4715df89436544588035bc337b831b, type: 2}
+  - {fileID: 11400000, guid: e3739d5ebb97d0f44828ed52cd19fa9b, type: 2}
+  - {fileID: 11400000, guid: 24037bafd2beb6d44acefe644d72d8e1, type: 2}
+  - {fileID: 11400000, guid: 801452581b275ec4892352e80a7ffcdb, type: 2}
+  - {fileID: 11400000, guid: a36b9b11abdb0d44f9ed20791156da57, type: 2}

@@ -12,13 +12,13 @@ namespace MingBay.Data
         [Header("基础信息")]
         [SerializeField]
         [InspectorName("工单 ID")]
-        [Tooltip("工单的唯一编号，例如 T_001。禁止留空或与其他工单重复。")]
-        private string ticketId = "T_001";
+        [Tooltip("工单的唯一编号，例如 T_D01_001。禁止留空或与其他工单重复。")]
+        private string ticketId = "T_D01_001";
 
         [SerializeField]
         [InspectorName("阶段 ID")]
-        [Tooltip("工单所属阶段。最小 Demo 暂时统一使用 Stage_Intro。")]
-        private string stageId = "Stage_Intro";
+        [Tooltip("工单所属阶段，例如 Stage_Tutorial 或 Stage_Day1。")]
+        private string stageId = "Stage_Tutorial";
 
         [SerializeField]
         [InspectorName("工单标题")]
@@ -72,21 +72,45 @@ namespace MingBay.Data
         private string historyText;
 
         [SerializeField]
-        [InspectorName("设备日志")]
-        [Tooltip("设备上报的状态和日志信息。没有内容时可以填写“暂无设备日志”。")]
+        [InspectorName("资料03：AI 处理建议")]
+        [Tooltip("AI 根据当前信息生成的处理建议和内部标签。")]
         [TextArea(2, 6)]
         private string deviceLogText;
 
         [SerializeField]
-        [InspectorName("区域状态")]
-        [Tooltip("该区域当前的系统标签、维护状态或异常说明。")]
+        [InspectorName("资料04：设备或系统日志")]
+        [Tooltip("设备日志、平台记录或其他可核验的系统数据。")]
         [TextArea(2, 6)]
         private string regionStatusText;
+
+        [Header("处置流程")]
+        [SerializeField]
+        [InspectorName("追问内容")]
+        [Tooltip("玩家点击“追问”后追加显示的用户说明。")]
+        [TextArea(2, 5)]
+        private string followUpText;
+
+        [SerializeField]
+        [InspectorName("转人工反馈")]
+        [Tooltip("玩家点击“转人工”后显示的系统与 A-07 反馈。")]
+        [TextArea(2, 5)]
+        private string transferText =
+            "AI《明湾通》：已转人工部门继续处理。\nA07：您好，《明湾通》A07 客服在线为您服务。";
+
+        [SerializeField]
+        [InspectorName("需要选择证据")]
+        [Tooltip("勾选后，追问或转人工之后必须从四份资料中选择一份证据。教程工单可关闭。")]
+        private bool requiresEvidenceSelection = true;
+
+        [SerializeField]
+        [InspectorName("证据请求文本")]
+        [Tooltip("进入证据选择阶段时显示的提示，例如“请出示证据”。")]
+        private string evidencePromptText = "请从四份资料中选择能够支持用户诉求的证据。";
 
         [Header("证据规则")]
         [SerializeField]
         [InspectorName("包含有效证据")]
-        [Tooltip("勾选后，玩家选择“保留证据”会成功记录该工单的证据。")]
+        [Tooltip("勾选后，玩家提交正确资料时会成功记录该工单的证据。")]
         private bool hasEvidence;
 
         [SerializeField]
@@ -94,18 +118,57 @@ namespace MingBay.Data
         [Tooltip("有效证据的唯一编号，例如 E_DOOR_BATCH。没有证据时请留空。")]
         private string evidenceId;
 
+        [SerializeField]
+        [Range(0, 3)]
+        [InspectorName("正确证据序号")]
+        [Tooltip("正确资料在四份资料中的序号：0=资料01，1=资料02，2=资料03，3=资料04。")]
+        private int correctEvidenceIndex;
+
         [Header("处理结果")]
         [SerializeField]
-        [InspectorName("保留证据结果文本")]
-        [Tooltip("玩家选择“保留证据”后显示的反馈文本。")]
+        [InspectorName("正确证据结果文本")]
+        [Tooltip("玩家提交正确资料作为证据后显示的反馈文本。")]
         [TextArea(2, 5)]
         private string onSaveEvidenceText;
+
+        [SerializeField]
+        [InspectorName("错误证据结果文本")]
+        [Tooltip("玩家提交错误资料作为证据后显示的反馈文本。")]
+        [TextArea(2, 5)]
+        private string onWrongEvidenceText =
+            "A07：后台未查询到能够支持该证据的相关记录，本次证据提交无效。";
 
         [SerializeField]
         [InspectorName("标记已解决结果文本")]
         [Tooltip("玩家选择“标记已解决”后显示的反馈文本。")]
         [TextArea(2, 5)]
         private string onResolvedText;
+
+        [Header("指标变化")]
+        [SerializeField]
+        [InspectorName("追问指标变化")]
+        [Tooltip("点击“追问”后立即产生的指标变化。一般保持为 0。")]
+        private MetricDelta followUpMetricDelta;
+
+        [SerializeField]
+        [InspectorName("转人工指标变化")]
+        [Tooltip("点击“转人工”后立即产生的指标变化。人工转接通常填写 1。")]
+        private MetricDelta transferMetricDelta;
+
+        [SerializeField]
+        [InspectorName("正确证据指标变化")]
+        [Tooltip("提交正确证据并完成工单时产生的指标变化。")]
+        private MetricDelta correctEvidenceMetricDelta;
+
+        [SerializeField]
+        [InspectorName("错误证据指标变化")]
+        [Tooltip("提交错误证据并完成工单时产生的指标变化。")]
+        private MetricDelta wrongEvidenceMetricDelta;
+
+        [SerializeField]
+        [InspectorName("标记已解决指标变化")]
+        [Tooltip("直接标记已解决并完成工单时产生的指标变化。")]
+        private MetricDelta resolvedMetricDelta;
 
         public string TicketId => ticketId;
         public string StageId => stageId;
@@ -120,9 +183,20 @@ namespace MingBay.Data
         public string HistoryText => historyText;
         public string DeviceLogText => deviceLogText;
         public string RegionStatusText => regionStatusText;
+        public string FollowUpText => followUpText;
+        public string TransferText => transferText;
+        public bool RequiresEvidenceSelection => requiresEvidenceSelection;
+        public string EvidencePromptText => evidencePromptText;
         public bool HasEvidence => hasEvidence;
         public string EvidenceId => evidenceId;
+        public int CorrectEvidenceIndex => correctEvidenceIndex;
         public string OnSaveEvidenceText => onSaveEvidenceText;
+        public string OnWrongEvidenceText => onWrongEvidenceText;
         public string OnResolvedText => onResolvedText;
+        public MetricDelta FollowUpMetricDelta => followUpMetricDelta;
+        public MetricDelta TransferMetricDelta => transferMetricDelta;
+        public MetricDelta CorrectEvidenceMetricDelta => correctEvidenceMetricDelta;
+        public MetricDelta WrongEvidenceMetricDelta => wrongEvidenceMetricDelta;
+        public MetricDelta ResolvedMetricDelta => resolvedMetricDelta;
     }
 }
