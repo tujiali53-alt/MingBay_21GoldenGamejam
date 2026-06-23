@@ -115,9 +115,19 @@ namespace MingBay.UI
         private Button transferHumanButton;
 
         [SerializeField]
+        [InspectorName("保留证据按钮")]
+        [Tooltip("确认资料面板中当前选中的证据。转人工后会自动出示该证据，并根据正确与否进入对应回答分支。")]
+        private Button saveEvidenceButton;
+
+        [SerializeField]
         [InspectorName("标记已解决按钮")]
         [Tooltip("玩家决定关闭工单时使用。查看资料前保持不可点击。")]
         private Button markResolvedButton;
+
+        [SerializeField]
+        [InspectorName("聊天证据操作按钮")]
+        [Tooltip("显示在 AI 聊天气泡中的“出示证据/完成对话”按钮。旧场景未绑定时会在运行时自动创建。")]
+        private Button chatEvidenceActionButton;
 
         [Header("结果面板")]
         [SerializeField]
@@ -150,6 +160,8 @@ namespace MingBay.UI
         public event Action ViewDataRequested;
         public event Action FollowUpRequested;
         public event Action TransferHumanRequested;
+        public event Action SaveEvidenceRequested;
+        public event Action ChatEvidenceActionRequested;
         public event Action<int> EvidenceSelected;
         public event Action MarkResolvedRequested;
         public event Action ResultActionRequested;
@@ -159,13 +171,22 @@ namespace MingBay.UI
         private TMP_Text resultActionButtonText;
         private TMP_Text primaryActionButtonText;
         private TMP_Text transferHumanButtonText;
+        private TMP_Text saveEvidenceButtonText;
+        private TMP_Text chatEvidenceActionButtonText;
         private bool dataExpanded;
+        private bool resolveTutorialHintVisible;
+        private ColorBlock defaultMarkResolvedColors;
 
         private void Awake()
         {
             EnsureRuntimeReferences();
             CacheButtonLabels();
             EnsureEvidenceButtons();
+            ConfigureConversationText();
+            if (markResolvedButton != null)
+            {
+                defaultMarkResolvedColors = markResolvedButton.colors;
+            }
         }
 
         private void OnEnable()
@@ -178,6 +199,16 @@ namespace MingBay.UI
             if (transferHumanButton != null)
             {
                 transferHumanButton.onClick.AddListener(NotifyTransferHumanRequested);
+            }
+
+            if (saveEvidenceButton != null)
+            {
+                saveEvidenceButton.onClick.AddListener(NotifySaveEvidenceRequested);
+            }
+
+            if (chatEvidenceActionButton != null)
+            {
+                chatEvidenceActionButton.onClick.AddListener(NotifyChatEvidenceActionRequested);
             }
 
             if (markResolvedButton != null)
@@ -201,6 +232,16 @@ namespace MingBay.UI
             if (transferHumanButton != null)
             {
                 transferHumanButton.onClick.RemoveListener(NotifyTransferHumanRequested);
+            }
+
+            if (saveEvidenceButton != null)
+            {
+                saveEvidenceButton.onClick.RemoveListener(NotifySaveEvidenceRequested);
+            }
+
+            if (chatEvidenceActionButton != null)
+            {
+                chatEvidenceActionButton.onClick.RemoveListener(NotifyChatEvidenceActionRequested);
             }
 
             if (markResolvedButton != null)
@@ -274,6 +315,8 @@ namespace MingBay.UI
 
             SetTicketContentVisible(false);
             resultPanel.SetActive(false);
+            resolveTutorialHintVisible = false;
+            RestoreMarkResolvedHighlight();
             SetEvidenceButtonsInteractable(false);
             RefreshQueueStates(-1, processedStates);
         }
@@ -301,12 +344,17 @@ namespace MingBay.UI
             SetTicketContentVisible(true);
             dataPanel.SetActive(false);
             resultPanel.SetActive(false);
+            resolveTutorialHintVisible = false;
+            RestoreMarkResolvedHighlight();
             dataExpanded = false;
             SetButtonLabel(primaryActionButtonText, "查看资料");
             SetButtonLabel(transferHumanButtonText, "转人工");
+            SetButtonLabel(saveEvidenceButtonText, "保留证据");
             primaryActionButton.interactable = true;
             transferHumanButton.interactable = false;
+            saveEvidenceButton.interactable = false;
             markResolvedButton.interactable = false;
+            chatEvidenceActionButton.gameObject.SetActive(false);
             SetEvidenceButtonsInteractable(false);
         }
 
@@ -315,19 +363,51 @@ namespace MingBay.UI
         /// </summary>
         public void ShowData(TicketData ticket)
         {
-            profileText.text = $"资料01｜用户资料\n{ticket.ProfileText}";
-            historyText.text = $"资料02｜历史工单记录\n{ticket.HistoryText}";
-            deviceLogText.text = $"资料03｜AI 处理建议\n{ticket.DeviceLogText}";
-            regionStatusText.text = $"资料04｜设备 / 系统日志\n{ticket.RegionStatusText}";
+            bool tutorialEvidenceLayout = ticket.TicketId == "T_S01_001";
+            bool stagedEvidenceFlow =
+                ticket.AllowDirectEvidenceSave && ticket.HasEvidence;
+
+            if (tutorialEvidenceLayout)
+            {
+                profileText.text = $"01：{ticket.ProfileText}";
+                historyText.text = $"02：{ticket.HistoryText}";
+            }
+            else
+            {
+                profileText.text = $"资料01｜用户资料\n{ticket.ProfileText}";
+                historyText.text = $"资料02｜历史工单记录\n{ticket.HistoryText}";
+                deviceLogText.text = $"资料03｜AI 处理建议\n{ticket.DeviceLogText}";
+                regionStatusText.text = $"资料04｜设备 / 系统日志\n{ticket.RegionStatusText}";
+            }
 
             dataPanel.SetActive(true);
+            ConfigureEvidenceCardLayout(tutorialEvidenceLayout);
+            if (stagedEvidenceFlow)
+            {
+                AddEvidenceRetentionHint(profileText);
+                AddEvidenceRetentionHint(historyText);
+                AddEvidenceRetentionHint(deviceLogText);
+                AddEvidenceRetentionHint(regionStatusText);
+            }
+
             dataExpanded = true;
-            statusText.text = "状态：请选择追问、转人工或标记已解决";
+            statusText.text = "状态：请选择追问、转人工、保留证据或标记已解决";
             SetButtonLabel(primaryActionButtonText, "追问");
             primaryActionButton.interactable = true;
             transferHumanButton.interactable = true;
+            saveEvidenceButton.interactable = false;
             markResolvedButton.interactable = true;
-            SetEvidenceButtonsInteractable(false);
+            SetEvidenceButtonsInteractable(stagedEvidenceFlow);
+        }
+
+        /// <summary>
+        /// 在资料查看阶段记录玩家选中的证据候选项，等待点击“保留证据”确认。
+        /// </summary>
+        public void ShowEvidenceCandidateSelected(int evidenceIndex)
+        {
+            statusText.text =
+                $"状态：已选择资料{evidenceIndex + 1:00}，请点击“保留证据”确认";
+            saveEvidenceButton.interactable = true;
         }
 
         /// <summary>
@@ -335,10 +415,15 @@ namespace MingBay.UI
         /// </summary>
         public void ShowResolutionHint(string actionText)
         {
-            aiReplyText.text = $"{aiReplyText.text}\n\n{actionText}";
+            if (!string.IsNullOrWhiteSpace(actionText))
+            {
+                aiReplyText.text = $"{aiReplyText.text}\n\n{actionText}";
+            }
+
             statusText.text = "教程提示：请使用“标记已解决”完成工单";
             primaryActionButton.interactable = false;
             transferHumanButton.interactable = false;
+            saveEvidenceButton.interactable = false;
             markResolvedButton.interactable = true;
             SetEvidenceButtonsInteractable(false);
         }
@@ -351,11 +436,165 @@ namespace MingBay.UI
             string actionText,
             string evidencePrompt)
         {
+            string actionSection = string.IsNullOrWhiteSpace(actionText)
+                ? string.Empty
+                : $"\n\n{actionText}";
             aiReplyText.text =
-                $"{ticket.AiReply}\n\n{actionText}\n\nA07：{evidencePrompt}";
+                $"{ticket.AiReply}{actionSection}\n\nA07：{evidencePrompt}";
             statusText.text = "状态：请点击资料01～资料04提交证据";
+            AddEvidenceClickHint(profileText);
+            AddEvidenceClickHint(historyText);
+            AddEvidenceClickHint(deviceLogText);
+            AddEvidenceClickHint(regionStatusText);
             primaryActionButton.interactable = false;
             transferHumanButton.interactable = false;
+            saveEvidenceButton.interactable = false;
+            markResolvedButton.interactable = false;
+            SetEvidenceButtonsInteractable(true);
+        }
+
+        /// <summary>
+        /// 将追问后获得的补充台词追加到居民消息框。
+        /// </summary>
+        public void ShowResidentFollowUp(string followUpText, bool hasRemainingFollowUp)
+        {
+            if (string.IsNullOrWhiteSpace(followUpText))
+            {
+                return;
+            }
+
+            userMessageText.text = $"{userMessageText.text}\n\n{followUpText}";
+            RefreshResidentMessageLayout();
+            statusText.text = hasRemainingFollowUp
+                ? "状态：居民仍有补充说明，可继续点击“追问”"
+                : "状态：居民补充说明已全部显示";
+            primaryActionButton.interactable = hasRemainingFollowUp;
+        }
+
+        /// <summary>
+        /// 第二张教程工单追问结束后，说明无法完美满足所有诉求，并引导关闭工单。
+        /// </summary>
+        public void ShowResolveTutorialHint()
+        {
+            resolveTutorialHintVisible = true;
+            resultTitleText.text = "教程提示";
+            resultDescriptionText.text =
+                "不是每次都能完美解决居民诉求。游戏居民可能态度不好，" +
+                "也可能要求太高、很难解决。你可以按下这个按钮轻松解决。";
+            resultMetricsText.text = "关闭提示后，“标记已解决”按钮会被高亮。";
+            SetButtonLabel(resultActionButtonText, "我知道了");
+            resultPanel.SetActive(true);
+        }
+
+        private void HighlightMarkResolvedButton()
+        {
+            ColorBlock colors = markResolvedButton.colors;
+            colors.normalColor = new Color(0.95f, 0.68f, 0.18f, 1f);
+            colors.highlightedColor = new Color(1f, 0.78f, 0.28f, 1f);
+            colors.selectedColor = colors.highlightedColor;
+            markResolvedButton.colors = colors;
+            markResolvedButton.interactable = true;
+            statusText.text = "教程提示：请点击高亮的“标记已解决”";
+        }
+
+        private void RestoreMarkResolvedHighlight()
+        {
+            if (markResolvedButton != null)
+            {
+                markResolvedButton.colors = defaultMarkResolvedColors;
+            }
+        }
+
+        /// <summary>
+        /// 教程中直接保留证据后刷新计数，但不结束当前工单。
+        /// </summary>
+        public void ShowDirectEvidenceSaved(
+            int evidenceIndex,
+            GameMetrics metrics)
+        {
+            UpdateMetricHeader(metrics);
+            statusText.text =
+                $"已保留资料{evidenceIndex + 1:00}，现在可点击“转人工”";
+            saveEvidenceButton.interactable = false;
+            SetEvidenceButtonsInteractable(true);
+        }
+
+        /// <summary>
+        /// 尚未保留证据时阻止进入人工核验阶段。
+        /// </summary>
+        public void ShowRetainedEvidenceRequired()
+        {
+            statusText.text = "请先点击一份资料并选择“保留证据”，再转人工";
+        }
+
+        /// <summary>
+        /// 转人工后在聊天区域等待玩家主动点击“出示证据”。
+        /// </summary>
+        public void ShowEvidencePresentationRequest(
+            TicketData ticket,
+            string actionText,
+            string evidencePrompt)
+        {
+            aiReplyText.text =
+                $"{ticket.AiReply}\n\n{actionText}\n\nA07：{evidencePrompt}";
+            statusText.text = "状态：人工客服正在等待证据";
+            primaryActionButton.interactable = false;
+            transferHumanButton.interactable = false;
+            saveEvidenceButton.interactable = false;
+            markResolvedButton.interactable = false;
+            SetEvidenceButtonsInteractable(false);
+            SetButtonLabel(chatEvidenceActionButtonText, "出示证据");
+            chatEvidenceActionButton.gameObject.SetActive(true);
+            chatEvidenceActionButton.interactable = true;
+        }
+
+        /// <summary>
+        /// 出示已保留证据后先展示客服与用户回应，再允许玩家进入结算。
+        /// </summary>
+        public void ShowEvidenceDialogue(
+            int evidenceIndex,
+            string userReply)
+        {
+            string safeUserReply = string.IsNullOrWhiteSpace(userReply)
+                ? "用户：我明白了，请按这个结果继续处理。"
+                : userReply;
+            aiReplyText.text =
+                $"{aiReplyText.text}\n\n玩家：出示资料{evidenceIndex + 1:00}\n\n" +
+                "A07：已收到您出示的证据，正在核验相关记录。";
+            userMessageText.text =
+                $"{userMessageText.text}\n\n{safeUserReply}";
+            RefreshResidentMessageLayout();
+            statusText.text = "状态：用户已回应，请完成本次对话";
+            SetButtonLabel(chatEvidenceActionButtonText, "完成对话");
+            chatEvidenceActionButton.interactable = true;
+        }
+
+        /// <summary>
+        /// 教程证据核验正确后返回处理界面，等待玩家主动标记已解决。
+        /// </summary>
+        public void ShowTutorialEvidenceAccepted(string feedbackText, GameMetrics metrics)
+        {
+            UpdateMetricHeader(metrics);
+            aiReplyText.text = $"{aiReplyText.text}\n\n{feedbackText}";
+            statusText.text = "教程提示：证据核验正确，请点击“标记已解决”";
+            primaryActionButton.interactable = false;
+            transferHumanButton.interactable = false;
+            saveEvidenceButton.interactable = false;
+            markResolvedButton.interactable = true;
+            SetEvidenceButtonsInteractable(false);
+        }
+
+        /// <summary>
+        /// 教程证据核验错误时保留证据选择状态，允许重新点击资料。
+        /// </summary>
+        public void ShowTutorialEvidenceRejected(string feedbackText, GameMetrics metrics)
+        {
+            UpdateMetricHeader(metrics);
+            aiReplyText.text = $"{aiReplyText.text}\n\n{feedbackText}";
+            statusText.text = "教程提示：证据不匹配，请重新点击资料01～资料04";
+            primaryActionButton.interactable = false;
+            transferHumanButton.interactable = false;
+            saveEvidenceButton.interactable = false;
             markResolvedButton.interactable = false;
             SetEvidenceButtonsInteractable(true);
         }
@@ -388,7 +627,9 @@ namespace MingBay.UI
 
             primaryActionButton.interactable = false;
             transferHumanButton.interactable = false;
+            saveEvidenceButton.interactable = false;
             markResolvedButton.interactable = false;
+            chatEvidenceActionButton.gameObject.SetActive(false);
             SetEvidenceButtonsInteractable(false);
             resultPanel.SetActive(true);
         }
@@ -423,10 +664,55 @@ namespace MingBay.UI
                 transferHumanButton != null
                     ? transferHumanButton.GetComponentInChildren<TMP_Text>(true)
                     : null;
+            saveEvidenceButtonText =
+                saveEvidenceButton != null
+                    ? saveEvidenceButton.GetComponentInChildren<TMP_Text>(true)
+                    : null;
+            chatEvidenceActionButtonText =
+                chatEvidenceActionButton != null
+                    ? chatEvidenceActionButton.GetComponentInChildren<TMP_Text>(true)
+                    : null;
             resultActionButtonText =
                 resultActionButton != null
                     ? resultActionButton.GetComponentInChildren<TMP_Text>(true)
                     : null;
+        }
+
+        /// <summary>
+        /// 居民框会依次显示原始求助、追问和证据回应，需要允许字号随内容自动缩小。
+        /// </summary>
+        private void ConfigureConversationText()
+        {
+            if (userMessageText == null)
+            {
+                return;
+            }
+
+            userMessageText.enableAutoSizing = true;
+            userMessageText.fontSizeMin = 8f;
+            userMessageText.fontSizeMax = 18f;
+            userMessageText.lineSpacing = -5f;
+            userMessageText.overflowMode = TextOverflowModes.Truncate;
+
+            RectTransform textRect = userMessageText.rectTransform;
+            textRect.anchorMin = new Vector2(0.12f, 0.03f);
+            textRect.anchorMax = new Vector2(0.97f, 0.82f);
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+        }
+
+        private void RefreshResidentMessageLayout()
+        {
+            if (userMessageText == null)
+            {
+                return;
+            }
+
+            userMessageText.ForceMeshUpdate(true, true);
+            Canvas.ForceUpdateCanvases();
+            LayoutRebuilder.ForceRebuildLayoutImmediate(
+                userMessageText.transform.parent as RectTransform);
+            userMessageText.ForceMeshUpdate(true, true);
         }
 
         private static void SetButtonLabel(TMP_Text label, string content)
@@ -434,6 +720,24 @@ namespace MingBay.UI
             if (label != null)
             {
                 label.text = content;
+            }
+        }
+
+        private static void AddEvidenceClickHint(TMP_Text evidenceText)
+        {
+            const string ClickHint = "【点击此资料提交证据】";
+            if (evidenceText != null && !evidenceText.text.Contains(ClickHint))
+            {
+                evidenceText.text = $"{evidenceText.text}\n\n{ClickHint}";
+            }
+        }
+
+        private static void AddEvidenceRetentionHint(TMP_Text evidenceText)
+        {
+            const string RetentionHint = "【点击此资料作为待保留证据】";
+            if (evidenceText != null && !evidenceText.text.Contains(RetentionHint))
+            {
+                evidenceText.text = $"{evidenceText.text}\n\n{RetentionHint}";
             }
         }
 
@@ -454,6 +758,10 @@ namespace MingBay.UI
                 {
                     continue;
                 }
+
+                evidenceText.enableAutoSizing = true;
+                evidenceText.fontSizeMin = 8f;
+                evidenceText.fontSizeMax = 14f;
 
                 GameObject cardObject = evidenceText.transform.parent.gameObject;
                 Button button = cardObject.GetComponent<Button>();
@@ -563,6 +871,132 @@ namespace MingBay.UI
                     FindSceneObject("ActionBar")
                 };
             }
+
+            EnsureRuntimeSaveEvidenceButton();
+            EnsureRuntimeChatEvidenceButton();
+        }
+
+        private void ConfigureEvidenceCardLayout(bool tutorialEvidenceLayout)
+        {
+            GameObject profileCard = profileText.transform.parent.gameObject;
+            GameObject historyCard = historyText.transform.parent.gameObject;
+            GameObject deviceCard = deviceLogText.transform.parent.gameObject;
+            GameObject regionCard = regionStatusText.transform.parent.gameObject;
+
+            profileCard.SetActive(true);
+            historyCard.SetActive(true);
+            deviceCard.SetActive(!tutorialEvidenceLayout);
+            regionCard.SetActive(!tutorialEvidenceLayout);
+            SetCardTitle(profileText, tutorialEvidenceLayout ? "具体证据 01" : "资料01 用户资料");
+            SetCardTitle(historyText, tutorialEvidenceLayout ? "具体证据 02" : "资料02 历史工单");
+
+            SetCardAnchors(
+                profileCard,
+                tutorialEvidenceLayout ? new Vector2(0.04f, 0.52f) : new Vector2(0.04f, 0.69f),
+                tutorialEvidenceLayout ? new Vector2(0.96f, 0.86f) : new Vector2(0.96f, 0.88f));
+            SetCardAnchors(
+                historyCard,
+                tutorialEvidenceLayout ? new Vector2(0.04f, 0.12f) : new Vector2(0.04f, 0.47f),
+                tutorialEvidenceLayout ? new Vector2(0.96f, 0.46f) : new Vector2(0.96f, 0.66f));
+        }
+
+        private static void SetCardAnchors(
+            GameObject cardObject,
+            Vector2 anchorMin,
+            Vector2 anchorMax)
+        {
+            RectTransform rect = cardObject.GetComponent<RectTransform>();
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+
+        private static void SetCardTitle(TMP_Text bodyText, string title)
+        {
+            TMP_Text[] texts = bodyText.transform.parent.GetComponentsInChildren<TMP_Text>(true);
+            foreach (TMP_Text text in texts)
+            {
+                if (text != bodyText)
+                {
+                    text.text = title;
+                    return;
+                }
+            }
+        }
+
+        /// <summary>
+        /// 为旧场景在 AI 聊天气泡内创建证据流程按钮。
+        /// </summary>
+        private void EnsureRuntimeChatEvidenceButton()
+        {
+            if (chatEvidenceActionButton != null ||
+                transferHumanButton == null ||
+                aiReplyText == null)
+            {
+                return;
+            }
+
+            chatEvidenceActionButton = Instantiate(
+                transferHumanButton,
+                aiReplyText.transform.parent);
+            chatEvidenceActionButton.gameObject.name = "Btn_ChatEvidenceAction";
+            RectTransform rect = chatEvidenceActionButton.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.78f, 0.08f);
+            rect.anchorMax = new Vector2(0.78f, 0.08f);
+            rect.pivot = new Vector2(0.5f, 0f);
+            rect.sizeDelta = new Vector2(190f, 46f);
+            rect.anchoredPosition = Vector2.zero;
+            chatEvidenceActionButtonText =
+                chatEvidenceActionButton.GetComponentInChildren<TMP_Text>(true);
+            SetButtonLabel(chatEvidenceActionButtonText, "出示证据");
+            chatEvidenceActionButton.gameObject.SetActive(false);
+        }
+
+        /// <summary>
+        /// 兼容只有三个操作按钮的旧场景。
+        /// 复制“转人工”按钮作为“保留证据”，并把四个按钮重新均匀排列。
+        /// </summary>
+        private void EnsureRuntimeSaveEvidenceButton()
+        {
+            if (saveEvidenceButton == null && transferHumanButton != null)
+            {
+                transferHumanButton.gameObject.name = "Btn_TransferHuman";
+                saveEvidenceButton = Instantiate(
+                    transferHumanButton,
+                    transferHumanButton.transform.parent);
+                saveEvidenceButton.gameObject.name = "Btn_SaveEvidence";
+                TMP_Text label =
+                    saveEvidenceButton.GetComponentInChildren<TMP_Text>(true);
+                if (label != null)
+                {
+                    label.text = "保留证据";
+                }
+            }
+
+            if (saveEvidenceButton == null)
+            {
+                return;
+            }
+
+            SetButtonAnchor(primaryActionButton, 0.13f);
+            SetButtonAnchor(transferHumanButton, 0.38f);
+            SetButtonAnchor(saveEvidenceButton, 0.63f);
+            SetButtonAnchor(markResolvedButton, 0.87f);
+        }
+
+        private static void SetButtonAnchor(Button button, float horizontalAnchor)
+        {
+            if (button == null)
+            {
+                return;
+            }
+
+            RectTransform rect = button.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(horizontalAnchor, rect.anchorMin.y);
+            rect.anchorMax = new Vector2(horizontalAnchor, rect.anchorMax.y);
+            rect.sizeDelta = new Vector2(250f, rect.sizeDelta.y);
+            rect.anchoredPosition = new Vector2(0f, rect.anchoredPosition.y);
         }
 
         private static GameObject FindSceneObject(string objectName)
@@ -596,11 +1030,24 @@ namespace MingBay.UI
         }
 
         private void NotifyTransferHumanRequested() => TransferHumanRequested?.Invoke();
+        private void NotifySaveEvidenceRequested() => SaveEvidenceRequested?.Invoke();
+        private void NotifyChatEvidenceActionRequested() => ChatEvidenceActionRequested?.Invoke();
         private void NotifyEvidence01Selected() => EvidenceSelected?.Invoke(0);
         private void NotifyEvidence02Selected() => EvidenceSelected?.Invoke(1);
         private void NotifyEvidence03Selected() => EvidenceSelected?.Invoke(2);
         private void NotifyEvidence04Selected() => EvidenceSelected?.Invoke(3);
         private void NotifyMarkResolvedRequested() => MarkResolvedRequested?.Invoke();
-        private void NotifyResultActionRequested() => ResultActionRequested?.Invoke();
+        private void NotifyResultActionRequested()
+        {
+            if (resolveTutorialHintVisible)
+            {
+                resolveTutorialHintVisible = false;
+                resultPanel.SetActive(false);
+                HighlightMarkResolvedButton();
+                return;
+            }
+
+            ResultActionRequested?.Invoke();
+        }
     }
 }

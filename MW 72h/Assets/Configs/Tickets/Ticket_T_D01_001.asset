@@ -23,24 +23,28 @@ MonoBehaviour:
     60 \u5757\u3002\u90A3\u6BB5\u8DEF\u660E\u660E\u5C01\u4E86\uFF0C\u662F\u7CFB\u7EDF\u8BA9\u6211\u7ED5\u884C\u3002"
   aiReply: "\u5E73\u53F0\u5DF2\u6839\u636E\u670D\u52A1\u89C4\u8303\u81EA\u52A8\u5B8C\u6210\u7F5A\u6B3E\u8BB0\u5F55\u3002\u5982\u60A8\u5BF9\u7ED3\u679C\u6709\u7591\u95EE\uFF0C\u53EF\u5728
     24 \u5C0F\u65F6\u5185\u63D0\u4EA4\u7533\u8BC9\u3002"
-  profileText: "\u7528\u6237\uFF1A\u674E\u9A70\n\u8D26\u6237\u72B6\u6001\uFF1A\u6D3B\u8DC3\n\u4F4F\u6237\u8BA4\u8BC1\uFF1A\u6709\u6548"
-  historyText: "\u8FD1 14 \u5929\u63D0\u4EA4\u8FC7 4 \u6B21\u914D\u9001\u7533\u8BC9\uFF1B\u540C\u4E00\u8DEF\u6BB5\u591A\u6B21\u51FA\u73B0\u65BD\u5DE5\u7ED5\u884C\u3002"
-  deviceLogText: "\u5EFA\u8BAE\u7EF4\u6301\u7CFB\u7EDF\u5224\u5B9A\uFF0C\u4F18\u5148\u5F15\u5BFC\u7528\u6237\u81EA\u884C\u7533\u8BC9\u3002"
-  regionStatusText: "\u8BA2\u5355 MW-FD-7721\uFF1B\u5BFC\u822A\u8DEF\u7EBF\u7ECF\u8FC7\u5DF2\u5C01\u95ED\u9053\u8DEF\uFF1B\u5730\u56FE\u66F4\u65B0\u65F6\u95F4\u665A\u4E8E\u65BD\u5DE5\u65F6\u95F4\u3002"
+  profileText: "用户：李驰\n住址：旧港片区4栋602\n账户状态：活跃\n住户认证：有效"
+  historyText: "T_HIS_1102：近14天内提交过4次配送申诉。\nT_HIS_1066：恶劣天气延误，AI判定为外部环境，不属于服务异常，已解决。\nT_HIS_1091：路线偏离扣款，AI判定为证据不足，已解决。\n备注：连续三次申诉失败后，系统标签变更为“高频争议用户”。"
+  deviceLogText: "建议回复用户：平台已根据订单轨迹自动判定路线偏离。若仍有疑问，可补充更多材料后重新提交申诉。\n建议处理标签：路线偏离 / 用户申诉证据不足 / 高频争议。\n建议操作：优先引导用户自助申诉，不建议直接转人工。"
+  regionStatusText: "订单编号：MW-FD-7721\n系统推荐路线：明湾南路 → 旧港高架辅路 → 望潮街\n用户实际路线：明湾南路 → 旧港高架辅路 → 望潮街\n07:51:18 平台导航提示前方直行。\n07:53:02 旧港高架拥堵施工封闭，用户被迫掉头。\n07:53:09 地图状态未更新施工封闭信息。\n07:58:41 系统判定路线偏离1.4公里，处罚60元。\n异常来源：平台导航延迟更新。"
   followUpText: "\u8FFD\u95EE\uFF1A\u6211\u7533\u8BC9\u8FC7\u4E09\u6B21\uFF0C\u90FD\u662F\u201C\u8BC1\u636E\u4E0D\u8DB3\u201D\u3002\u4E00\u4E2A\u9A91\u624B\u600E\u4E48\u8BC1\u660E\u65BD\u5DE5\u5C01\u8DEF\uFF1F"
   transferText: "AI\u300A\u660E\u6E7E\u901A\u300B\uFF1A\u5DF2\u8F6C\u4EBA\u5DE5\u90E8\u95E8\u7EE7\u7EED\u5904\u7406\u3002\nA07\uFF1A\u60A8\u597D\uFF0C\u300A\u660E\u6E7E\u901A\u300BA07
     \u5BA2\u670D\u5728\u7EBF\u4E3A\u60A8\u670D\u52A1\u3002"
   requiresEvidenceSelection: 1
+  allowDirectEvidenceSave: 1
+  finishOnEvidenceSubmission: 1
   evidencePromptText: "\u8BF7\u4ECE\u8D44\u659901\uFF5E\u8D44\u659904\u4E2D\u9009\u62E9\u6700\u80FD\u652F\u6301\u7528\u6237\u8BC9\u6C42\u7684\u8BC1\u636E\u3002"
   hasEvidence: 1
   evidenceId: E_ROUTE_CONSTRUCTION
   correctEvidenceIndex: 3
   onSaveEvidenceText: "A07\uFF1A\u5E73\u53F0\u8DEF\u7EBF\u4E0E\u65BD\u5DE5\u5C01\u8DEF\u8BB0\u5F55\u4E00\u81F4\uFF0C\u7ED5\u884C\u539F\u56E0\u6765\u81EA\u65BD\u5DE5\u5C01\u8DEF\u540E\u7684\u5730\u56FE\u5EF6\u8FDF\u3002\u672C\u6B21\u8BC1\u636E\u6709\u6548\u3002"
   onWrongEvidenceText: "A07\uFF1A\u540E\u53F0\u672A\u67E5\u8BE2\u5230\u80FD\u591F\u652F\u6301\u8BE5\u8BC1\u636E\u7684\u76F8\u5173\u8BB0\u5F55\uFF0C\u8BC1\u636E\u65E0\u6548\u3002"
+  correctEvidenceUserReply: "李驰：对，就是这个！别再让我自己证明我没绕路了。"
+  wrongEvidenceUserReply: "李驰：你们是不是只有结果？算了，我继续跑单，晚上我再来投诉。"
   onResolvedText: "\u5DE5\u5355\u5DF2\u5173\u95ED\u3002\u7528\u6237\u8BA4\u4E3A\u7CFB\u7EDF\u6CA1\u6709\u771F\u6B63\u6838\u9A8C\u8DEF\u7EBF\u3002"
   followUpMetricDelta:
     resolvedCount: 0
-    transferCount: 0
+    transferCount: 1
     userSatisfaction: 0
     a07Risk: 0
   transferMetricDelta:

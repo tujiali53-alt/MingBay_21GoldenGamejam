@@ -11,6 +11,8 @@ namespace MingBay.Core
         ReadingTicket,
         ReviewingData,
         AwaitingEvidence,
+        AwaitingEvidencePresentation,
+        AwaitingDialogueCompletion,
         ShowingResult
     }
 }

@@ -61,6 +61,13 @@ namespace MingBay.Core
         private int processedCount;
         private bool[] processedTickets;
         private bool isSceneLoading;
+        private int selectedEvidenceIndex = -1;
+        private int retainedEvidenceIndex = -1;
+        private int currentFollowUpIndex;
+        private string pendingResultTitle;
+        private string pendingResultText;
+        private bool pendingEvidenceSaved;
+        private bool pendingEvidenceCorrect;
 
         private void Awake()
         {
@@ -86,6 +93,8 @@ namespace MingBay.Core
             mainGameView.ViewDataRequested += HandleViewDataRequested;
             mainGameView.FollowUpRequested += HandleFollowUpRequested;
             mainGameView.TransferHumanRequested += HandleTransferHumanRequested;
+            mainGameView.SaveEvidenceRequested += HandleSaveEvidenceRequested;
+            mainGameView.ChatEvidenceActionRequested += HandleChatEvidenceActionRequested;
             mainGameView.EvidenceSelected += HandleEvidenceSelected;
             mainGameView.MarkResolvedRequested += HandleMarkResolvedRequested;
             mainGameView.ResultActionRequested += HandleResultActionRequested;
@@ -102,6 +111,8 @@ namespace MingBay.Core
             mainGameView.ViewDataRequested -= HandleViewDataRequested;
             mainGameView.FollowUpRequested -= HandleFollowUpRequested;
             mainGameView.TransferHumanRequested -= HandleTransferHumanRequested;
+            mainGameView.SaveEvidenceRequested -= HandleSaveEvidenceRequested;
+            mainGameView.ChatEvidenceActionRequested -= HandleChatEvidenceActionRequested;
             mainGameView.EvidenceSelected -= HandleEvidenceSelected;
             mainGameView.MarkResolvedRequested -= HandleMarkResolvedRequested;
             mainGameView.ResultActionRequested -= HandleResultActionRequested;
@@ -222,6 +233,9 @@ namespace MingBay.Core
                 return;
             }
 
+            selectedEvidenceIndex = -1;
+            retainedEvidenceIndex = -1;
+            currentFollowUpIndex = 0;
             currentState = GameState.ReadingTicket;
             mainGameView.ShowTicket(
                 currentTicket,
@@ -233,7 +247,7 @@ namespace MingBay.Core
         }
 
         /// <summary>
-        /// 玩家查看资料后，解锁追问、转人工和标记已解决。
+        /// 玩家查看资料后，解锁追问、转人工、教程保留证据和标记已解决。
         /// </summary>
         private void HandleViewDataRequested()
         {
@@ -256,8 +270,41 @@ namespace MingBay.Core
                 return;
             }
 
-            metricManager.Apply(currentTicket.FollowUpMetricDelta);
-            BeginEvidenceOrResolutionHint(currentTicket.FollowUpText);
+            string[] followUpLines = currentTicket.FollowUpLines;
+            if (currentFollowUpIndex >= followUpLines.Length)
+            {
+                return;
+            }
+
+            if (currentFollowUpIndex == 0)
+            {
+                metricManager.Apply(currentTicket.FollowUpMetricDelta);
+            }
+
+            string followUpLine = followUpLines[currentFollowUpIndex];
+            currentFollowUpIndex++;
+            bool hasRemainingFollowUp = currentFollowUpIndex < followUpLines.Length;
+            mainGameView.ShowResidentFollowUp(followUpLine, hasRemainingFollowUp);
+
+            if (hasRemainingFollowUp)
+            {
+                return;
+            }
+
+            if (currentTicket.TicketId == "T_S01_002")
+            {
+                mainGameView.ShowResolveTutorialHint();
+                return;
+            }
+
+            // 教程第一张工单的“追问”与“查看资料 / 保留证据”属于并联操作。
+            // 追问后继续停留在资料处理阶段，避免下一次点击资料被误判为直接提交证据。
+            if (currentTicket.AllowDirectEvidenceSave)
+            {
+                return;
+            }
+
+            BeginEvidenceOrResolutionHint(string.Empty);
         }
 
         /// <summary>
@@ -270,8 +317,47 @@ namespace MingBay.Core
                 return;
             }
 
+            if (currentTicket.AllowDirectEvidenceSave &&
+                currentTicket.RequiresEvidenceSelection &&
+                retainedEvidenceIndex < 0)
+            {
+                mainGameView.ShowRetainedEvidenceRequired();
+                return;
+            }
+
             metricManager.Apply(currentTicket.TransferMetricDelta);
+
+            if (currentTicket.AllowDirectEvidenceSave &&
+                currentTicket.RequiresEvidenceSelection)
+            {
+                currentState = GameState.AwaitingEvidencePresentation;
+                mainGameView.ShowEvidencePresentationRequest(
+                    currentTicket,
+                    currentTicket.TransferText,
+                    currentTicket.EvidencePromptText);
+                return;
+            }
+
             BeginEvidenceOrResolutionHint(currentTicket.TransferText);
+        }
+
+        /// <summary>
+        /// 教程中直接保留当前工单的有效证据，但不结束工单。
+        /// </summary>
+        private void HandleSaveEvidenceRequested()
+        {
+            if (currentState != GameState.ReviewingData ||
+                !currentTicket.AllowDirectEvidenceSave ||
+                !currentTicket.HasEvidence ||
+                selectedEvidenceIndex < 0)
+            {
+                return;
+            }
+
+            retainedEvidenceIndex = selectedEvidenceIndex;
+            mainGameView.ShowDirectEvidenceSaved(
+                retainedEvidenceIndex,
+                GetMetrics());
         }
 
         private void BeginEvidenceOrResolutionHint(string actionText)
@@ -294,26 +380,105 @@ namespace MingBay.Core
         /// </summary>
         private void HandleEvidenceSelected(int evidenceIndex)
         {
+            if (currentState == GameState.ReviewingData &&
+                currentTicket.AllowDirectEvidenceSave)
+            {
+                selectedEvidenceIndex = evidenceIndex;
+                mainGameView.ShowEvidenceCandidateSelected(evidenceIndex);
+                return;
+            }
+
             if (currentState != GameState.AwaitingEvidence)
             {
                 return;
             }
 
+            ResolveEvidence(evidenceIndex);
+        }
+
+        /// <summary>
+        /// 根据提交的资料序号应用正确或错误证据分支。
+        /// </summary>
+        private void ResolveEvidence(int evidenceIndex)
+        {
             bool isCorrect =
                 currentTicket.HasEvidence &&
                 evidenceIndex == currentTicket.CorrectEvidenceIndex;
             bool evidenceSaved =
-                isCorrect && evidenceManager.SaveEvidence(currentTicket.EvidenceId);
+                isCorrect &&
+                (evidenceIndex == retainedEvidenceIndex ||
+                 evidenceManager.SaveEvidence(currentTicket.EvidenceId));
 
             if (isCorrect)
             {
                 metricManager.Apply(currentTicket.CorrectEvidenceMetricDelta);
+                if (!currentTicket.FinishOnEvidenceSubmission)
+                {
+                    currentState = GameState.ReviewingData;
+                    mainGameView.ShowTutorialEvidenceAccepted(
+                        currentTicket.OnSaveEvidenceText,
+                        GetMetrics());
+                    return;
+                }
+
                 FinishTicket("证据核验正确", currentTicket.OnSaveEvidenceText, evidenceSaved);
                 return;
             }
 
             metricManager.Apply(currentTicket.WrongEvidenceMetricDelta);
+            if (!currentTicket.FinishOnEvidenceSubmission)
+            {
+                mainGameView.ShowTutorialEvidenceRejected(
+                    currentTicket.OnWrongEvidenceText,
+                    GetMetrics());
+                return;
+            }
+
             FinishTicket("证据核验错误", currentTicket.OnWrongEvidenceText, false);
+        }
+
+        /// <summary>
+        /// 处理聊天区域中的“出示证据”和“完成对话”按钮。
+        /// </summary>
+        private void HandleChatEvidenceActionRequested()
+        {
+            if (currentState == GameState.AwaitingEvidencePresentation)
+            {
+                bool isCorrect =
+                    currentTicket.HasEvidence &&
+                    retainedEvidenceIndex == currentTicket.CorrectEvidenceIndex;
+                pendingEvidenceCorrect = isCorrect;
+                pendingEvidenceSaved = false;
+                pendingResultTitle = isCorrect ? "证据核验正确" : "证据核验错误";
+                pendingResultText = isCorrect
+                    ? currentTicket.OnSaveEvidenceText
+                    : currentTicket.OnWrongEvidenceText;
+
+                currentState = GameState.AwaitingDialogueCompletion;
+                mainGameView.ShowEvidenceDialogue(
+                    retainedEvidenceIndex,
+                    isCorrect
+                        ? currentTicket.CorrectEvidenceUserReply
+                        : currentTicket.WrongEvidenceUserReply);
+                return;
+            }
+
+            if (currentState != GameState.AwaitingDialogueCompletion)
+            {
+                return;
+            }
+
+            metricManager.Apply(
+                pendingEvidenceCorrect
+                    ? currentTicket.CorrectEvidenceMetricDelta
+                    : currentTicket.WrongEvidenceMetricDelta);
+            pendingEvidenceSaved =
+                pendingEvidenceCorrect &&
+                evidenceManager.SaveEvidence(currentTicket.EvidenceId);
+            FinishTicket(
+                pendingResultTitle,
+                pendingResultText,
+                pendingEvidenceSaved);
         }
 
         /// <summary>

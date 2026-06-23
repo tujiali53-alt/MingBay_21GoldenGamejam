@@ -91,6 +91,11 @@ namespace MingBay.Data
         private string followUpText;
 
         [SerializeField]
+        [InspectorName("连续追问台词")]
+        [Tooltip("每点击一次“追问”依次显示一条。填写后优先使用该列表；留空时使用上方单条追问内容。")]
+        private string[] followUpLines;
+
+        [SerializeField]
         [InspectorName("转人工反馈")]
         [Tooltip("玩家点击“转人工”后显示的系统与 A-07 反馈。")]
         [TextArea(2, 5)]
@@ -101,6 +106,16 @@ namespace MingBay.Data
         [InspectorName("需要选择证据")]
         [Tooltip("勾选后，追问或转人工之后必须从四份资料中选择一份证据。教程工单可关闭。")]
         private bool requiresEvidenceSelection = true;
+
+        [SerializeField]
+        [InspectorName("允许直接保留证据")]
+        [Tooltip("勾选后，玩家需要先在资料面板选择并保留证据，再转人工并在聊天中主动出示。适用于教程第一单和正式证据工单。")]
+        private bool allowDirectEvidenceSave;
+
+        [SerializeField]
+        [InspectorName("提交证据后完成工单")]
+        [Tooltip("勾选后，提交正确或错误证据会直接结算工单；关闭后会返回工单处理界面，等待玩家标记已解决。")]
+        private bool finishOnEvidenceSubmission = true;
 
         [SerializeField]
         [InspectorName("证据请求文本")]
@@ -139,6 +154,18 @@ namespace MingBay.Data
             "A07：后台未查询到能够支持该证据的相关记录，本次证据提交无效。";
 
         [SerializeField]
+        [InspectorName("正确证据用户回应")]
+        [Tooltip("人工客服核验正确证据后，用户在聊天中的回应。该回应显示完毕后才允许进入结算。")]
+        [TextArea(2, 5)]
+        private string correctEvidenceUserReply;
+
+        [SerializeField]
+        [InspectorName("错误证据用户回应")]
+        [Tooltip("人工客服核验错误证据后，用户在聊天中的回应。该回应显示完毕后才允许进入结算。")]
+        [TextArea(2, 5)]
+        private string wrongEvidenceUserReply;
+
+        [SerializeField]
         [InspectorName("标记已解决结果文本")]
         [Tooltip("玩家选择“标记已解决”后显示的反馈文本。")]
         [TextArea(2, 5)]
@@ -157,12 +184,12 @@ namespace MingBay.Data
 
         [SerializeField]
         [InspectorName("正确证据指标变化")]
-        [Tooltip("提交正确证据并完成工单时产生的指标变化。")]
+        [Tooltip("提交正确证据时产生的指标变化。教程可保持已解决变化为 0，再由玩家标记已解决。")]
         private MetricDelta correctEvidenceMetricDelta;
 
         [SerializeField]
         [InspectorName("错误证据指标变化")]
-        [Tooltip("提交错误证据并完成工单时产生的指标变化。")]
+        [Tooltip("提交错误证据时产生的指标变化。允许重试的教程工单一般保持为 0。")]
         private MetricDelta wrongEvidenceMetricDelta;
 
         [SerializeField]
@@ -184,14 +211,22 @@ namespace MingBay.Data
         public string DeviceLogText => deviceLogText;
         public string RegionStatusText => regionStatusText;
         public string FollowUpText => followUpText;
+        public string[] FollowUpLines =>
+            followUpLines != null && followUpLines.Length > 0
+                ? followUpLines
+                : new[] { followUpText };
         public string TransferText => transferText;
         public bool RequiresEvidenceSelection => requiresEvidenceSelection;
+        public bool AllowDirectEvidenceSave => allowDirectEvidenceSave;
+        public bool FinishOnEvidenceSubmission => finishOnEvidenceSubmission;
         public string EvidencePromptText => evidencePromptText;
         public bool HasEvidence => hasEvidence;
         public string EvidenceId => evidenceId;
         public int CorrectEvidenceIndex => correctEvidenceIndex;
         public string OnSaveEvidenceText => onSaveEvidenceText;
         public string OnWrongEvidenceText => onWrongEvidenceText;
+        public string CorrectEvidenceUserReply => correctEvidenceUserReply;
+        public string WrongEvidenceUserReply => wrongEvidenceUserReply;
         public string OnResolvedText => onResolvedText;
         public MetricDelta FollowUpMetricDelta => followUpMetricDelta;
         public MetricDelta TransferMetricDelta => transferMetricDelta;

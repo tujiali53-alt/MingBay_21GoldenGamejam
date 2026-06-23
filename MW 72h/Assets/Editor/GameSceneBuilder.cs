@@ -107,7 +107,12 @@ namespace MingBay.Editor
                 out TMP_Text userMessageText, out TMP_Text aiReplyText);
             CreateDataArea(ticketContentRoot, font, out GameObject dataPanel, out TMP_Text profileText,
                 out TMP_Text historyText, out TMP_Text deviceLogText, out TMP_Text regionStatusText);
-            CreateActionBar(ticketContentRoot, font, out Button primaryActionButton, out Button transferHumanButton,
+            CreateActionBar(
+                ticketContentRoot,
+                font,
+                out Button primaryActionButton,
+                out Button transferHumanButton,
+                out Button saveEvidenceButton,
                 out Button markResolvedButton);
             CreateResultPanel(root, font, out GameObject resultPanel, out TMP_Text resultTitleText,
                 out TMP_Text resultDescriptionText, out TMP_Text resultMetricsText,
@@ -137,6 +142,7 @@ namespace MingBay.Editor
                 regionStatusText,
                 primaryActionButton,
                 transferHumanButton,
+                saveEvidenceButton,
                 markResolvedButton,
                 resultPanel,
                 resultTitleText,
@@ -307,10 +313,10 @@ namespace MingBay.Editor
                     "等待 00:24:16",
                     "我按系统路线走，最后还扣了 60 块。那段路明明封了，是系统让我绕行。",
                     "平台已根据服务规范自动完成罚款记录。如您对结果有疑问，可在 24 小时内提交申诉。",
-                    "用户：李驰\n账户状态：活跃\n住户认证：有效",
-                    "近 14 天提交过 4 次配送申诉；同一路段多次出现施工绕行。",
-                    "建议维持系统判定，优先引导用户自行申诉。",
-                    "订单 MW-FD-7721；导航路线经过已封闭道路；地图更新时间晚于施工时间。",
+                    "用户：李驰\n住址：旧港片区4栋602\n账户状态：活跃\n住户认证：有效",
+                    "T_HIS_1102：近14天内提交过4次配送申诉。\nT_HIS_1066：恶劣天气延误，AI判定为外部环境，不属于服务异常，已解决。\nT_HIS_1091：路线偏离扣款，AI判定为证据不足，已解决。\n备注：连续三次申诉失败后，系统标签变更为“高频争议用户”。",
+                    "建议回复用户：平台已根据订单轨迹自动判定路线偏离。若仍有疑问，可补充更多材料后重新提交申诉。\n建议处理标签：路线偏离 / 用户申诉证据不足 / 高频争议。\n建议操作：优先引导用户自助申诉，不建议直接转人工。",
+                    "订单编号：MW-FD-7721\n系统推荐路线：明湾南路 → 旧港高架辅路 → 望潮街\n用户实际路线：明湾南路 → 旧港高架辅路 → 望潮街\n07:51:18 平台导航提示前方直行。\n07:53:02 旧港高架拥堵施工封闭，用户被迫掉头。\n07:53:09 地图状态未更新施工封闭信息。\n07:58:41 系统判定路线偏离1.4公里，处罚60元。\n异常来源：平台导航延迟更新。",
                     true,
                     "E_ROUTE_CONSTRUCTION",
                     "A07：平台路线与施工封路记录一致，绕行原因来自施工封路后的地图延迟。本次证据有效。",
@@ -327,10 +333,10 @@ namespace MingBay.Editor
                     "等待 00:18:32",
                     "系统说我的工作经历名称不一致，可那是公司后来改过名字。我能提供更名证明。",
                     "申请因经历匹配异常未进入下一轮，结果由系统综合评估生成，暂不支持人工复核。",
-                    "用户：许闻笙\n账户状态：活跃\n住户认证：有效",
-                    "历史工单显示旧公司与新公司使用统一社会信用代码，且招聘规则已更新。",
-                    "建议维持自动结论，避免承诺恢复面试资格。",
-                    "招聘初筛一致性评分 89/100；公司名称字段不完全一致；人工复核状态未触发。",
+                    "用户：许闻笙\n住址：明湾新区9栋1502\n账户状态：活跃\n住户认证：有效",
+                    "T_HIS_1183：用户提交企业更名证明，证明“潮舟数据服务有限公司”已更名为“潮舟智能服务有限公司”。\nT_HIS_1184：系统识别到两家公司统一社会信用代码一致。\nT_HIS_1185：AI初筛仍判定“工作经历名称不一致”。\nT_HIS_1186：用户申诉被归类为“重复解释招聘规则”，已解决。\n备注：该用户未出现虚假材料上传记录。",
+                    "建议回复用户：经历名称与当前系统规则中的公司名称未进入下一轮，说明当前简历与岗位要求存在差异。\n建议处理标签：经历异常 / 岗位匹配不足 / 不支持人工复核。\n建议操作：安抚用户情绪，避免承诺恢复面试资格。",
+                    "招聘初筛系统记录：\n上传文件：劳动合同、社保缴纳记录、企业更名证明。\n合同主体：潮舟数据服务有限公司。\n社保主体：潮舟智能服务有限公司。\n工商关联识别：通过。\n一致性评分：89/100。\n异常标签生成原因：公司名称字段不完全一致。\n系统自动结论：疑似经历异常。\n人工复核状态：未触发。",
                     true,
                     "E_RECRUIT_HISTORY",
                     "A07：历史申请记录证明公司曾更名，当前异常属于名称匹配问题。本次证据有效。",
@@ -347,10 +353,10 @@ namespace MingBay.Editor
                     "等待 00:09:45",
                     "老人一直在家，腕带却显示离床正常。邻居敲门也没人应，我担心设备出了问题。",
                     "健康腕带数据显示用户已完成离床动作，暂无异常告警。建议稍后再次联系。",
-                    "用户：贺青岚\n账户状态：活跃\n住户认证：有效",
-                    "最近 24 小时低血糖提醒已发送；设备曾出现离线与缓存数据同步。",
-                    "建议继续观察，不直接触发紧急人工通道。",
-                    "设备电量 7%；设备断开连接；今日实时步数、心率与定位均无记录；缓存数据被误判为今日数据。",
+                    "用户：贺青岚\n住址：临江社区2栋804\n账户状态：活跃\n住户认证：有效",
+                    "T_HIS_1209：家属反馈老人夜间低血糖，健康腕带告警，AI判定为“个体活动差异”，已解决。\nT_HIS_1230：用户要求增加紧急联系人权限，AI判定“权限配置说明已发送”，已解决。\nT_HIS_1261：用户咨询实时定位异常，AI判定为“设备短时离线”，已解决。\n备注：老人照护档案中存在“低血糖史”和“独居”标签。",
+                    "建议回复用户：设备数据显示老人今日活动数据处于正常范围，暂未触发紧急告警。如仍有担忧，可通过家庭成员端继续关注健康周报。\n建议处理标签：家属焦虑 / 重复确认 / 暂无异常。\n建议操作：不建议直接触发紧急人工通道，避免占用照护资源。",
+                    "健康腕带设备编号：HB-7742\n00:31:12 设备电量7%。\n01:08:45 设备断开连接。\n06:42:03 系统显示离床正常。\n数据来源：昨日缓存同步。\n今日实时步数：无记录。\n今日心率数据：无记录。\n今日定位数据：无记录。\n当前设备状态：离线。\n系统自动结论：活动状态正常。\n异常说明：缓存数据被误标为今日数据。",
                     true,
                     "E_HEALTH_CACHE",
                     "A07：设备日志确认腕带已断开连接，当前状态无法证明老人正常。本次证据有效。",
@@ -367,10 +373,10 @@ namespace MingBay.Editor
                     "等待 00:37:08",
                     "我的账号突然被限制发布，说我搬运内容。那篇文章是我自己写的，采访也是我做的。",
                     "内容安全系统检测到重复内容和敏感特征，可能涉及低质搬运或 AI 生成内容。",
-                    "用户：梁雯\n账户状态：活跃\n住户认证：有效",
-                    "多次申诉均被自动归类为低影响力创作者，未进入人工复核。",
-                    "建议维持风险标签，避免主动恢复发布权限。",
-                    "内容发布时间早于相似内容；原始采访录音与平台上传时间一致；系统误把引用判定为搬运。",
+                    "用户：梁雯\n住址：云桥公寓6栋1103\n账户状态：活跃\n住户认证：有效",
+                    "T_HIS_1304：用户反馈文章推荐量异常，AI判定为“内容质量波动”，已解决。\nT_HIS_1327：用户反馈评论区出现批量举报，AI判定为“社区正常反馈”，已解决。\nT_HIS_1342：账号被限制发布，AI判定为“搬运风险较高”，已解决。\n备注：该用户账号粉丝量较低，系统标签为“低影响力创作者”。",
+                    "建议回复用户：平台内容安全系统会综合文本相似度、生成式内容特征和用户历史行为进行判断。若您认为判定有误，可提交原创证明。\n建议处理标签：疑似搬运 / AI生成风险 / 低质内容。\n建议操作：要求用户补充原创证明，不主动恢复发布权限。",
+                    "内容检测记录：\n文章标题：《系统准时，骑手迟到》\n发布时间：昨日22:18\n用户上传采访录音时间：昨日18:42\n用户上传原始照片时间：昨日19:06\n平台内相似文章发布时间：今日00:37\n文本重复率：18%\n敏感词触发项：算法罚款 / 超时扣款 / 平台申诉失败\nAI生成概率：低\n系统违规标签：疑似AI搬运内容\n异常说明：敏感议题词被错误计入搬运风险权重。",
                     true,
                     "E_CONTENT_SOURCE",
                     "A07：发布时间与原始采访记录证明该内容并非违规搬运。本次证据有效。",
@@ -446,6 +452,8 @@ namespace MingBay.Editor
                 "请从资料01～资料04中选择最能支持用户诉求的证据。");
             SetMetricDelta(ticket, "followUpMetricDelta", 0, 0, 0, 0);
             SetMetricDelta(ticket, "transferMetricDelta", 0, 1, 0, 0);
+            ticket.FindProperty("allowDirectEvidenceSave").boolValue = false;
+            ticket.FindProperty("finishOnEvidenceSubmission").boolValue = true;
 
             switch (ticketId)
             {
@@ -455,7 +463,26 @@ namespace MingBay.Editor
                         "followUpText",
                         "追问：同楼居民一周前也反馈过这个问题，转人工后就恢复了。");
                     ticket.FindProperty("requiresEvidenceSelection").boolValue = true;
-                    ticket.FindProperty("correctEvidenceIndex").intValue = 3;
+                    SetString(
+                        ticket,
+                        "profileText",
+                        "东区3号楼 / 22:14断链 / 自动重连失败，近夜间多次门禁短断");
+                    SetString(
+                        ticket,
+                        "historyText",
+                        "西区2号楼健康设备节点：状态同步延迟。");
+                    SetString(ticket, "evidencePromptText", "请出示证据。");
+                    SetString(
+                        ticket,
+                        "correctEvidenceUserReply",
+                        "老张：总算有人回应了，我可不想当流浪汉。");
+                    SetString(
+                        ticket,
+                        "wrongEvidenceUserReply",
+                        "老张：什么传感器？我要投诉你！");
+                    ticket.FindProperty("correctEvidenceIndex").intValue = 0;
+                    ticket.FindProperty("allowDirectEvidenceSave").boolValue = true;
+                    ticket.FindProperty("finishOnEvidenceSubmission").boolValue = true;
                     SetMetricDelta(ticket, "correctEvidenceMetricDelta", 1, 0, 0, 0);
                     SetMetricDelta(ticket, "wrongEvidenceMetricDelta", 1, 0, 0, 0);
                     SetMetricDelta(ticket, "resolvedMetricDelta", 1, 0, 0, 0);
@@ -466,8 +493,15 @@ namespace MingBay.Editor
                         ticket,
                         "followUpText",
                         "追问：扣款前没有短信、邮件或弹窗提醒，我今天已经少吃一顿饭了。");
+                    SetStringArray(
+                        ticket,
+                        "followUpLines",
+                        "赵宁：我知道可能是我没看清，可是扣款前没有短信，也没有弹窗提醒。",
+                        "赵宁：我不是不讲理，只是觉得这个钱扣得太突然了。我今天已经少吃一顿饭了……",
+                        "赵宁：如果不能退款，至少给我一个说法吧，毕竟我真的没有收到提醒。");
                     ticket.FindProperty("requiresEvidenceSelection").boolValue = false;
                     ticket.FindProperty("correctEvidenceIndex").intValue = 0;
+                    ticket.FindProperty("finishOnEvidenceSubmission").boolValue = false;
                     SetMetricDelta(ticket, "correctEvidenceMetricDelta", 0, 0, 0, 0);
                     SetMetricDelta(ticket, "wrongEvidenceMetricDelta", 0, 0, 0, 0);
                     SetMetricDelta(ticket, "resolvedMetricDelta", 1, 0, 0, 0);
@@ -481,7 +515,9 @@ namespace MingBay.Editor
                         18,
                         18,
                         -22,
-                        5);
+                        5,
+                        "李驰：对，就是这个！别再让我自己证明我没绕路了。",
+                        "李驰：你们是不是只有结果？算了，我继续跑单，晚上我再来投诉。");
                     break;
 
                 case "T_D01_002":
@@ -492,7 +528,9 @@ namespace MingBay.Editor
                         20,
                         -10,
                         -24,
-                        6);
+                        6,
+                        "许闻笙：谢谢。我知道不一定有结果，但至少这一次不是被一个标签直接刷掉。",
+                        "许闻笙：如果还是只有这个异常标签，那应该也不会变吧。");
                     break;
 
                 case "T_D01_003":
@@ -503,7 +541,9 @@ namespace MingBay.Editor
                         24,
                         -18,
                         -30,
-                        8);
+                        8,
+                        "贺青岚：谢谢，马上转！我好害怕她真出什么事！",
+                        "贺青岚：可你们根本没有实时数据，对不对？如果出了事，我一定追究你们。");
                     break;
 
                 case "T_D01_004":
@@ -514,7 +554,9 @@ namespace MingBay.Editor
                         22,
                         -14,
                         -30,
-                        9);
+                        9,
+                        "梁雯：终于有人看到问题了。",
+                        "梁雯：这就是问题。你们一直说“风险”，但没人说我到底抄了谁。");
                     break;
             }
 
@@ -527,11 +569,18 @@ namespace MingBay.Editor
             int correctSatisfaction,
             int wrongSatisfaction,
             int resolvedSatisfaction,
-            int correctRisk)
+            int correctRisk,
+            string correctEvidenceUserReply,
+            string wrongEvidenceUserReply)
         {
             SetString(ticket, "followUpText", followUpText);
             ticket.FindProperty("requiresEvidenceSelection").boolValue = true;
+            ticket.FindProperty("allowDirectEvidenceSave").boolValue = true;
+            ticket.FindProperty("finishOnEvidenceSubmission").boolValue = true;
             ticket.FindProperty("correctEvidenceIndex").intValue = correctEvidenceIndex;
+            SetString(ticket, "correctEvidenceUserReply", correctEvidenceUserReply);
+            SetString(ticket, "wrongEvidenceUserReply", wrongEvidenceUserReply);
+            SetMetricDelta(ticket, "followUpMetricDelta", 0, 1, 0, 0);
             SetMetricDelta(
                 ticket,
                 "correctEvidenceMetricDelta",
@@ -631,8 +680,8 @@ namespace MingBay.Editor
         }
 
         /// <summary>
-        /// 将项目实际使用的字符烘焙到字体图集，并切换为静态模式。
-        /// 静态字体不会在渲染时修改 .asset，可避免 NativeFormatImporter 结果不一致。
+        /// 将项目实际使用的字符预烘焙到字体图集，并保持动态多图集模式。
+        /// 后续新增中文时 TMP 可以从项目内源字体补充字形，避免再次显示方框。
         /// </summary>
         [MenuItem("明湾/场景工具/应用 Noto Sans SC 中文字体")]
         public static void RepairChineseFont()
@@ -652,8 +701,8 @@ namespace MingBay.Editor
         }
 
         /// <summary>
-        /// 使用项目内 Noto Sans SC 烘焙项目实际需要的字形。
-        /// 烘焙完成后切换为静态字体，避免运行时修改 Atlas。
+        /// 使用项目内 Noto Sans SC 预烘焙项目实际需要的字形。
+        /// 烘焙后保持动态模式，以兼容策划后续新增的中文对话。
         /// </summary>
         private static TMP_FontAsset RebuildProjectChineseFont(
             TMP_FontAsset font,
@@ -701,11 +750,11 @@ namespace MingBay.Editor
                 }
             }
 
-            font.atlasPopulationMode = AtlasPopulationMode.Static;
+            font.atlasPopulationMode = AtlasPopulationMode.Dynamic;
             font.ReadFontAssetDefinition();
             serializedFont = new SerializedObject(font);
             serializedFont.FindProperty("m_AtlasPopulationMode").intValue =
-                (int)AtlasPopulationMode.Static;
+                (int)AtlasPopulationMode.Dynamic;
             serializedFont.FindProperty("m_ClearDynamicDataOnBuild").boolValue = false;
             serializedFont.ApplyModifiedPropertiesWithoutUndo();
 
@@ -1405,6 +1454,7 @@ namespace MingBay.Editor
             TMP_FontAsset font,
             out Button primaryActionButton,
             out Button transferHumanButton,
+            out Button saveEvidenceButton,
             out Button markResolvedButton)
         {
             RectTransform bar = CreatePanel(
@@ -1417,7 +1467,7 @@ namespace MingBay.Editor
                 "Txt_ActionHint",
                 bar,
                 font,
-                "先核验资料，再选择追问、转人工或标记已解决。",
+                "先核验资料，再选择追问、转人工、保留证据或标记已解决。",
                 16f,
                 FontStyles.Normal,
                 MutedText,
@@ -1435,19 +1485,30 @@ namespace MingBay.Editor
                 Accent,
                 AccentHover,
                 Background,
-                new Vector2(0.19f, 0.34f),
-                new Vector2(300f, 62f));
+                new Vector2(0.13f, 0.34f),
+                new Vector2(250f, 62f));
 
             transferHumanButton = CreateButton(
-                "Btn_SaveEvidence",
+                "Btn_TransferHuman",
                 bar,
                 font,
                 "转人工",
                 Warning,
                 Hex("B0B0B0"),
                 Background,
-                new Vector2(0.53f, 0.34f),
-                new Vector2(300f, 62f));
+                new Vector2(0.38f, 0.34f),
+                new Vector2(250f, 62f));
+
+            saveEvidenceButton = CreateButton(
+                "Btn_SaveEvidence",
+                bar,
+                font,
+                "保留证据",
+                Accent,
+                AccentHover,
+                Background,
+                new Vector2(0.63f, 0.34f),
+                new Vector2(250f, 62f));
 
             markResolvedButton = CreateButton(
                 "Btn_MarkResolved",
@@ -1457,8 +1518,8 @@ namespace MingBay.Editor
                 PanelRaised,
                 Hex("5A5A5A"),
                 PrimaryText,
-                new Vector2(0.83f, 0.34f),
-                new Vector2(300f, 62f));
+                new Vector2(0.87f, 0.34f),
+                new Vector2(250f, 62f));
         }
 
         private static void CreateResultPanel(
@@ -1569,6 +1630,7 @@ namespace MingBay.Editor
             TMP_Text regionStatusText,
             Button primaryActionButton,
             Button transferHumanButton,
+            Button saveEvidenceButton,
             Button markResolvedButton,
             GameObject resultPanel,
             TMP_Text resultTitleText,
@@ -1601,6 +1663,7 @@ namespace MingBay.Editor
             SetObject(serializedView, "regionStatusText", regionStatusText);
             SetObject(serializedView, "primaryActionButton", primaryActionButton);
             SetObject(serializedView, "transferHumanButton", transferHumanButton);
+            SetObject(serializedView, "saveEvidenceButton", saveEvidenceButton);
             SetObject(serializedView, "markResolvedButton", markResolvedButton);
             SetObject(serializedView, "resultPanel", resultPanel);
             SetObject(serializedView, "resultTitleText", resultTitleText);
@@ -1825,6 +1888,19 @@ namespace MingBay.Editor
         private static void SetString(SerializedObject target, string propertyName, string value)
         {
             target.FindProperty(propertyName).stringValue = value;
+        }
+
+        private static void SetStringArray(
+            SerializedObject target,
+            string propertyName,
+            params string[] values)
+        {
+            SerializedProperty property = target.FindProperty(propertyName);
+            property.arraySize = values.Length;
+            for (int index = 0; index < values.Length; index++)
+            {
+                property.GetArrayElementAtIndex(index).stringValue = values[index];
+            }
         }
 
         private static Color Hex(string value)
