@@ -11,8 +11,8 @@ namespace MingBay.Core
     /// 负责推进教程与正式值班阶段、记录选择，并通知 UI 刷新。
     /// </summary>
     [DisallowMultipleComponent]
-    [AddComponentMenu("明湾/核心/游戏流程管理器")]
-    public sealed class GameFlowManager : MonoBehaviour
+    [AddComponentMenu("明湾/Level1/核心/游戏流程管理器")]
+    public sealed class Level1GameFlowManager : MonoBehaviour
     {
         [Header("数据配置")]
         [SerializeField]
@@ -33,8 +33,8 @@ namespace MingBay.Core
 
         [SerializeField]
         [InspectorName("游戏主界面")]
-        [Tooltip("负责显示工单、资料、按钮和结果的 MainGameView。")]
-        private MainGameView mainGameView;
+        [Tooltip("负责显示工单、资料、按钮和结果的 Level1GameView。")]
+        private Level1GameView mainGameView;
 
         [Header("阶段配置")]
         [SerializeField]
@@ -53,7 +53,7 @@ namespace MingBay.Core
         [Tooltip("点击结果面板中的“返回主菜单”后加载的场景。必须存在于 Build Settings。")]
         private string titleSceneName = "TitleScene";
 
-        private GameState currentState;
+        private Level1GameState currentState;
         private readonly List<TicketData> currentStageTickets = new();
         private TicketData currentTicket;
         private int currentStageIndex = -1;
@@ -201,7 +201,7 @@ namespace MingBay.Core
         /// </summary>
         private void ShowTicketSelection()
         {
-            currentState = GameState.TicketSelection;
+            currentState = Level1GameState.TicketSelection;
             mainGameView.ShowTicketSelection(
                 GetCurrentStageDisplayName(),
                 processedCount,
@@ -218,9 +218,9 @@ namespace MingBay.Core
         private void HandleTicketSelected(int ticketIndex)
         {
             bool canSwitchTicket =
-                currentState == GameState.TicketSelection ||
-                currentState == GameState.ReadingTicket ||
-                currentState == GameState.ReviewingData;
+                currentState == Level1GameState.TicketSelection ||
+                currentState == Level1GameState.ReadingTicket ||
+                currentState == Level1GameState.ReviewingData;
 
             if (!canSwitchTicket ||
                 ticketIndex < 0 ||
@@ -243,7 +243,7 @@ namespace MingBay.Core
             retainedEvidenceIndices.Clear();
             currentFollowUpIndex = 0;
             transferAppliedForCurrentTicket = false;
-            currentState = GameState.ReadingTicket;
+            currentState = Level1GameState.ReadingTicket;
             mainGameView.ShowTicket(
                 currentTicket,
                 GetCurrentStageDisplayName(),
@@ -258,13 +258,13 @@ namespace MingBay.Core
         /// </summary>
         private void HandleViewDataRequested()
         {
-            if (currentState != GameState.ReadingTicket &&
-                currentState != GameState.ReviewingData)
+            if (currentState != Level1GameState.ReadingTicket &&
+                currentState != Level1GameState.ReviewingData)
             {
                 return;
             }
 
-            currentState = GameState.ReviewingData;
+            currentState = Level1GameState.ReviewingData;
             mainGameView.ShowData(currentTicket);
         }
 
@@ -273,8 +273,8 @@ namespace MingBay.Core
         /// </summary>
         private void HandleFollowUpRequested()
         {
-            if (currentState != GameState.ReadingTicket &&
-                currentState != GameState.ReviewingData)
+            if (currentState != Level1GameState.ReadingTicket &&
+                currentState != Level1GameState.ReviewingData)
             {
                 return;
             }
@@ -324,7 +324,7 @@ namespace MingBay.Core
         /// </summary>
         private void HandleTransferHumanRequested()
         {
-            if (currentState != GameState.ReviewingData)
+            if (currentState != Level1GameState.ReviewingData)
             {
                 return;
             }
@@ -346,7 +346,7 @@ namespace MingBay.Core
             if (currentTicket.RequiresEvidenceSelection &&
                 retainedEvidenceIndices.Count > 0)
             {
-                currentState = GameState.AwaitingEvidencePresentation;
+                currentState = Level1GameState.AwaitingEvidencePresentation;
                 retainedEvidenceIndex = -1;
                 TicketData ticket = currentTicket;
                 List<int> retainedEvidenceSnapshot = new(retainedEvidenceIndices);
@@ -357,7 +357,7 @@ namespace MingBay.Core
                         false,
                         () =>
                         {
-                            if (currentState == GameState.AwaitingEvidencePresentation &&
+                            if (currentState == Level1GameState.AwaitingEvidencePresentation &&
                                 currentTicket == ticket)
                             {
                                 mainGameView.ShowEvidenceNotebook(
@@ -399,14 +399,14 @@ namespace MingBay.Core
         /// </summary>
         private void HandleSaveEvidenceRequested()
         {
-            if (currentState == GameState.AwaitingEvidence &&
+            if (currentState == Level1GameState.AwaitingEvidence &&
                 selectedEvidenceIndex >= 0)
             {
                 ResolveEvidence(selectedEvidenceIndex);
                 return;
             }
 
-            if (currentState != GameState.ReviewingData ||
+            if (currentState != Level1GameState.ReviewingData ||
                 !currentTicket.HasEvidence ||
                 selectedEvidenceIndex < 0)
             {
@@ -428,7 +428,7 @@ namespace MingBay.Core
                 return;
             }
 
-            currentState = GameState.AwaitingEvidence;
+            currentState = Level1GameState.AwaitingEvidence;
             mainGameView.ShowEvidenceSelection(
                 currentTicket,
                 actionText,
@@ -440,7 +440,7 @@ namespace MingBay.Core
         /// </summary>
         private void HandleEvidenceSelected(int evidenceIndex)
         {
-            if (currentState == GameState.ReviewingData &&
+            if (currentState == Level1GameState.ReviewingData &&
                 currentTicket.HasEvidence)
             {
                 selectedEvidenceIndex = evidenceIndex;
@@ -448,14 +448,14 @@ namespace MingBay.Core
                 return;
             }
 
-            if (currentState == GameState.AwaitingEvidence)
+            if (currentState == Level1GameState.AwaitingEvidence)
             {
                 selectedEvidenceIndex = evidenceIndex;
                 mainGameView.ShowEvidenceCandidateSelected(evidenceIndex);
                 return;
             }
 
-            if (currentState == GameState.AwaitingEvidencePresentation &&
+            if (currentState == Level1GameState.AwaitingEvidencePresentation &&
                 retainedEvidenceIndices.Contains(evidenceIndex))
             {
                 retainedEvidenceIndex = evidenceIndex;
@@ -481,7 +481,7 @@ namespace MingBay.Core
                 metricManager.Apply(currentTicket.CorrectEvidenceMetricDelta);
                 if (!currentTicket.FinishOnEvidenceSubmission)
                 {
-                    currentState = GameState.ReviewingData;
+                    currentState = Level1GameState.ReviewingData;
                     mainGameView.ShowTutorialEvidenceAccepted(
                         currentTicket.OnSaveEvidenceText,
                         GetMetrics());
@@ -517,7 +517,7 @@ namespace MingBay.Core
         /// </summary>
         private void HandleChatEvidenceActionRequested()
         {
-            if (currentState == GameState.AwaitingEvidencePresentation)
+            if (currentState == Level1GameState.AwaitingEvidencePresentation)
             {
                 if (retainedEvidenceIndex < 0)
                 {
@@ -547,7 +547,7 @@ namespace MingBay.Core
                 return;
             }
 
-            if (currentState != GameState.AwaitingDialogueCompletion)
+            if (currentState != Level1GameState.AwaitingDialogueCompletion)
             {
                 return;
             }
@@ -567,13 +567,13 @@ namespace MingBay.Core
 
         private void HandleNotebookCancelRequested()
         {
-            if (currentState != GameState.AwaitingEvidencePresentation)
+            if (currentState != Level1GameState.AwaitingEvidencePresentation)
             {
                 return;
             }
 
             retainedEvidenceIndex = -1;
-            currentState = GameState.ReviewingData;
+            currentState = Level1GameState.ReviewingData;
             mainGameView.ShowData(currentTicket);
         }
 
@@ -588,9 +588,9 @@ namespace MingBay.Core
                 currentTicketIndex >= 0 &&
                 currentTicketIndex < processedTickets.Length &&
                 !processedTickets[currentTicketIndex] &&
-                currentState != GameState.TicketSelection &&
-                currentState != GameState.ShowingResult &&
-                currentState != GameState.AwaitingDialogueCompletion;
+                currentState != Level1GameState.TicketSelection &&
+                currentState != Level1GameState.ShowingResult &&
+                currentState != Level1GameState.AwaitingDialogueCompletion;
             if (!canForceResolveCurrentTicket)
             {
                 return;
@@ -611,7 +611,7 @@ namespace MingBay.Core
             string resultText)
         {
             TicketData ticket = currentTicket;
-            currentState = GameState.AwaitingDialogueCompletion;
+            currentState = Level1GameState.AwaitingDialogueCompletion;
             TicketDialogueLine[] resultLines = isCorrect
                 ? ticket.EvidenceCorrectDialogueLines
                 : ticket.EvidenceWrongDialogueLines;
@@ -621,7 +621,7 @@ namespace MingBay.Core
                 () =>
                 {
                     if (currentTicket != ticket ||
-                        currentState != GameState.AwaitingDialogueCompletion)
+                        currentState != Level1GameState.AwaitingDialogueCompletion)
                     {
                         return;
                     }
@@ -635,7 +635,7 @@ namespace MingBay.Core
         {
             processedTickets[currentTicketIndex] = true;
             processedCount++;
-            currentState = GameState.ShowingResult;
+            currentState = Level1GameState.ShowingResult;
             bool hasRemainingTickets = processedCount < currentStageTickets.Count;
             string resultActionLabel = hasRemainingTickets
                 ? "返回工单列表"
@@ -657,7 +657,7 @@ namespace MingBay.Core
         /// </summary>
         private void HandleResultActionRequested()
         {
-            if (currentState != GameState.ShowingResult)
+            if (currentState != Level1GameState.ShowingResult)
             {
                 return;
             }
@@ -758,37 +758,37 @@ namespace MingBay.Core
 
             if (database == null)
             {
-                Debug.LogError("GameFlowManager 缺少“Demo 数据库”引用。", this);
+                Debug.LogError("Level1GameFlowManager 缺少“Demo 数据库”引用。", this);
                 isValid = false;
             }
 
             if (evidenceManager == null)
             {
-                Debug.LogError("GameFlowManager 缺少“证据管理器”引用。", this);
+                Debug.LogError("Level1GameFlowManager 缺少“证据管理器”引用。", this);
                 isValid = false;
             }
 
             if (metricManager == null)
             {
-                Debug.LogError("GameFlowManager 缺少“指标管理器”引用。", this);
+                Debug.LogError("Level1GameFlowManager 缺少“指标管理器”引用。", this);
                 isValid = false;
             }
 
             if (mainGameView == null)
             {
-                Debug.LogError("GameFlowManager 缺少“游戏主界面”引用。", this);
+                Debug.LogError("Level1GameFlowManager 缺少“游戏主界面”引用。", this);
                 isValid = false;
             }
 
             if (string.IsNullOrWhiteSpace(titleSceneName))
             {
-                Debug.LogError("GameFlowManager 的“主菜单场景名称”不能为空。", this);
+                Debug.LogError("Level1GameFlowManager 的“主菜单场景名称”不能为空。", this);
                 isValid = false;
             }
 
             if (GetConfiguredStageOrder().Length == 0)
             {
-                Debug.LogError("GameFlowManager 的“阶段顺序”至少需要配置一个阶段。", this);
+                Debug.LogError("Level1GameFlowManager 的“阶段顺序”至少需要配置一个阶段。", this);
                 isValid = false;
             }
 

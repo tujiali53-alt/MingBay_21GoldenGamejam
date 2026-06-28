@@ -39,7 +39,7 @@ namespace MingBay.UI
         [SerializeField]
         [InspectorName("游戏场景名称")]
         [Tooltip("点击开始按钮后加载的场景名称。必须与 Build Settings 中的场景名称完全一致，策划通常无需修改。")]
-        private string gameSceneName = "GameScene";
+        private string gameSceneName = "Level1Scene";
 
         // 防止玩家连续点击开始按钮，造成同一场景被重复加载。
         private bool isLoading;

@@ -13,11 +13,11 @@ namespace MingBay.UI
 {
     /// <summary>
     /// 游戏主界面的显示与按钮入口。
-    /// 该脚本不判断证据和流程，只负责把玩家操作通知给 GameFlowManager。
+    /// 该脚本不判断证据和流程，只负责把玩家操作通知给 Level1GameFlowManager。
     /// </summary>
     [DisallowMultipleComponent]
-    [AddComponentMenu("明湾/UI/游戏主界面")]
-    public sealed class MainGameView : MonoBehaviour
+    [AddComponentMenu("明湾/Level1/UI/游戏主界面")]
+    public sealed class Level1GameView : MonoBehaviour
     {
         [Header("桌面入口")]
         [SerializeField]
@@ -57,8 +57,8 @@ namespace MingBay.UI
 
         [SerializeField]
         [InspectorName("工单队列模板")]
-        [Tooltip("用于复制工单按钮的隐藏模板，必须绑定 TicketQueueItemView。")]
-        private TicketQueueItemView ticketQueueItemTemplate;
+        [Tooltip("用于复制工单按钮的隐藏模板，必须绑定 Level1TicketQueueItemView。")]
+        private Level1TicketQueueItemView ticketQueueItemTemplate;
 
         [SerializeField]
         [InspectorName("工单内容对象")]
@@ -324,7 +324,7 @@ namespace MingBay.UI
 
         private const int NotebookEvidenceSlotCount = 4;
 
-        private readonly List<TicketQueueItemView> queueItems = new();
+        private readonly List<Level1TicketQueueItemView> queueItems = new();
         private readonly Button[] evidenceButtons = new Button[4];
         private readonly Button[] evidenceDetailButtons = new Button[4];
         private readonly Button[] evidenceCollectButtons = new Button[4];
@@ -566,8 +566,8 @@ namespace MingBay.UI
         {
             for (int childIndex = ticketQueueContent.childCount - 1; childIndex >= 0; childIndex--)
             {
-                TicketQueueItemView existingItem =
-                    ticketQueueContent.GetChild(childIndex).GetComponent<TicketQueueItemView>();
+                Level1TicketQueueItemView existingItem =
+                    ticketQueueContent.GetChild(childIndex).GetComponent<Level1TicketQueueItemView>();
                 if (existingItem == null || existingItem == ticketQueueItemTemplate)
                 {
                     continue;
@@ -598,7 +598,7 @@ namespace MingBay.UI
 
             for (int index = 0; index < tickets.Count; index++)
             {
-                TicketQueueItemView item = Instantiate(ticketQueueItemTemplate, ticketQueueContent);
+                Level1TicketQueueItemView item = Instantiate(ticketQueueItemTemplate, ticketQueueContent);
                 RectTransform itemRect = item.GetComponent<RectTransform>();
                 itemRect.anchorMin = new Vector2(0f, 1f);
                 itemRect.anchorMax = Vector2.one;
@@ -2105,7 +2105,7 @@ namespace MingBay.UI
         }
 
         /// <summary>
-        /// 兼容尚未重新生成的旧 GameScene。
+        /// 兼容尚未重新生成的旧 Level1Scene。
         /// 通过对象名称复用旧的队列占位项，不要求策划手动重新绑定 Inspector。
         /// </summary>
         private void EnsureRuntimeReferences()
@@ -2186,11 +2186,11 @@ namespace MingBay.UI
                     }
 
                     button.targetGraphic = background;
-                    TicketQueueItemView template =
-                        templateObject.GetComponent<TicketQueueItemView>();
+                    Level1TicketQueueItemView template =
+                        templateObject.GetComponent<Level1TicketQueueItemView>();
                     if (template == null)
                     {
-                        template = templateObject.AddComponent<TicketQueueItemView>();
+                        template = templateObject.AddComponent<Level1TicketQueueItemView>();
                     }
 
                     template.BindReferences(

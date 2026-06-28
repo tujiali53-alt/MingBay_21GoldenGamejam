@@ -19,9 +19,9 @@ namespace MingBay.Editor
     /// 基础工单队列场景生成工具。
     /// 所有美术位置仅使用 Unity 默认 Image、色块和文字占位，方便后续直接替换。
     /// </summary>
-    public static class GameSceneBuilder
+    public static class Level1SceneBuilder
     {
-        private const string GameScenePath = "Assets/Scenes/GameScene.unity";
+        private const string Level1ScenePath = "Assets/Scenes/Level1Scene.unity";
         private const string TitleScenePath = "Assets/Scenes/TitleScene.unity";
         private const string SpreadsheetConfigJsonPath =
             "Assets/Configs/Spreadsheet/MingBaySpreadsheetConfig.json";
@@ -63,10 +63,10 @@ namespace MingBay.Editor
         private static readonly Color Border = new(0.55f, 0.55f, 0.55f, 0.28f);
 
         /// <summary>
-        /// 重新创建测试工单、Demo 数据库和 GameScene。
-        /// 注意：执行后会覆盖当前 GameScene。
+        /// 重新创建测试工单、Demo 数据库和 Level1Scene。
+        /// 注意：执行后会覆盖当前 Level1Scene。
         /// </summary>
-        [MenuItem("明湾/场景工具/生成基础工单 Demo")]
+        [MenuItem("明湾/Level1/场景工具/生成基础工单 Demo")]
         public static void Build()
         {
             EnsureFolder("Assets/Configs/Tickets");
@@ -112,7 +112,7 @@ namespace MingBay.Editor
                 out TMP_Text evidenceText,
                 out TMP_Text resolvedText,
                 out RectTransform queueContent,
-                out TicketQueueItemView queueItemTemplate,
+                out Level1TicketQueueItemView queueItemTemplate,
                 out TMP_Text titleText,
                 out TMP_Text metaText,
                 out TMP_Text ticketIdText,
@@ -162,9 +162,9 @@ namespace MingBay.Editor
                 out Button evidenceDetailCloseButton);
 
             // 先保持对象关闭，避免 AddComponent 时触发尚未绑定引用的 OnEnable。
-            GameObject viewObject = new("MainGameView");
+            GameObject viewObject = new("Level1GameView");
             viewObject.SetActive(false);
-            MainGameView view = viewObject.AddComponent<MainGameView>();
+            Level1GameView view = viewObject.AddComponent<Level1GameView>();
             BindView(
                 view,
                 appWindow.gameObject,
@@ -235,11 +235,11 @@ namespace MingBay.Editor
             systemsObject.SetActive(false);
             EvidenceManager evidenceManager = systemsObject.AddComponent<EvidenceManager>();
             MetricManager metricManager = systemsObject.AddComponent<MetricManager>();
-            GameFlowManager flowManager = systemsObject.AddComponent<GameFlowManager>();
+            Level1GameFlowManager flowManager = systemsObject.AddComponent<Level1GameFlowManager>();
             BindFlowManager(flowManager, database, evidenceManager, metricManager, view);
             systemsObject.SetActive(true);
 
-            // 保存前生成队列预览；正式运行时 GameFlowManager 会清理并重新生成。
+            // 保存前生成队列预览；正式运行时 Level1GameFlowManager 会清理并重新生成。
             List<TicketData> dayOneTickets = database.GetTicketsByStage(CurrentSpreadsheetLevelId);
             view.BuildTicketQueue(dayOneTickets);
             view.ShowTicketSelection(
@@ -250,14 +250,14 @@ namespace MingBay.Editor
                 new bool[dayOneTickets.Count]);
             appWindow.gameObject.SetActive(false);
 
-            EditorSceneManager.SaveScene(scene, GameScenePath);
+            EditorSceneManager.SaveScene(scene, Level1ScenePath);
             UpdateBuildSettings();
             ValidateGeneratedContent(database, flowManager, view, queueItemTemplate);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             CapturePreview(canvas, camera);
 
-            Debug.Log("GameScene 基础工单队列 Demo 生成成功。");
+            Debug.Log("Level1Scene 基础工单队列 Demo 生成成功。");
         }
 
         /// <summary>
@@ -265,9 +265,9 @@ namespace MingBay.Editor
         /// </summary>
         private static void ValidateGeneratedContent(
             MingBayProjectDatabase database,
-            GameFlowManager flowManager,
-            MainGameView view,
-            TicketQueueItemView queueItemTemplate)
+            Level1GameFlowManager flowManager,
+            Level1GameView view,
+            Level1TicketQueueItemView queueItemTemplate)
         {
             if (database == null || database.TicketCount <= 0 || database.GetTicket(0) == null)
             {
@@ -294,21 +294,21 @@ namespace MingBay.Editor
                 }
             }
 
-            ValidateObjectReferences(flowManager, nameof(GameFlowManager));
-            ValidateObjectReferences(view, nameof(MainGameView));
-            ValidateObjectReferences(queueItemTemplate, nameof(TicketQueueItemView));
+            ValidateObjectReferences(flowManager, nameof(Level1GameFlowManager));
+            ValidateObjectReferences(view, nameof(Level1GameView));
+            ValidateObjectReferences(queueItemTemplate, nameof(Level1TicketQueueItemView));
 
             bool hasTitleScene = Array.Exists(
                 EditorBuildSettings.scenes,
                 scene => scene.enabled && scene.path == TitleScenePath);
-            bool hasGameScene = Array.Exists(
+            bool hasLevel1Scene = Array.Exists(
                 EditorBuildSettings.scenes,
-                scene => scene.enabled && scene.path == GameScenePath);
+                scene => scene.enabled && scene.path == Level1ScenePath);
 
-            if (!hasTitleScene || !hasGameScene)
+            if (!hasTitleScene || !hasLevel1Scene)
             {
                 throw new InvalidOperationException(
-                    "Build Settings 必须同时包含启用状态的 TitleScene 与 GameScene。");
+                    "Build Settings 必须同时包含启用状态的 TitleScene 与 Level1Scene。");
             }
         }
 
@@ -1366,7 +1366,7 @@ namespace MingBay.Editor
         /// 将项目实际使用的字符预烘焙到字体图集，并保持动态多图集模式。
         /// 后续新增中文时 TMP 可以从项目内源字体补充字形，避免再次显示方框。
         /// </summary>
-        [MenuItem("明湾/场景工具/应用 Noto Sans SC 中文字体")]
+        [MenuItem("明湾/Level1/场景工具/应用 Noto Sans SC 中文字体")]
         public static void RepairChineseFont()
         {
             TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(ChineseFontPath);
@@ -1593,7 +1593,7 @@ namespace MingBay.Editor
 
         private static void NormalizeProjectSceneFonts(TMP_FontAsset replacementFont)
         {
-            NormalizeSceneFont(GameScenePath, replacementFont);
+            NormalizeSceneFont(Level1ScenePath, replacementFont);
             NormalizeSceneFont(TitleScenePath, replacementFont);
         }
 
@@ -1779,7 +1779,7 @@ namespace MingBay.Editor
             out TMP_Text evidenceText,
             out TMP_Text resolvedText,
             out RectTransform queueContent,
-            out TicketQueueItemView queueItemTemplate,
+            out Level1TicketQueueItemView queueItemTemplate,
             out TMP_Text titleText,
             out TMP_Text metaText,
             out TMP_Text ticketIdText,
@@ -2013,7 +2013,7 @@ namespace MingBay.Editor
             return window;
         }
 
-        private static TicketQueueItemView CreateTicketQueueTemplate(RectTransform parent, TMP_FontAsset font)
+        private static Level1TicketQueueItemView CreateTicketQueueTemplate(RectTransform parent, TMP_FontAsset font)
         {
             RectTransform item = CreateImage(
                 "QueueItemPlaceholder",
@@ -2049,7 +2049,7 @@ namespace MingBay.Editor
                 new Vector2(78f, 0f),
                 new Vector2(-8f, 0f));
 
-            TicketQueueItemView view = item.gameObject.AddComponent<TicketQueueItemView>();
+            Level1TicketQueueItemView view = item.gameObject.AddComponent<Level1TicketQueueItemView>();
             view.BindReferences(button, background, summary);
             item.gameObject.SetActive(false);
             return view;
@@ -3279,7 +3279,7 @@ namespace MingBay.Editor
             RectTransform root,
             TMP_FontAsset font,
             out RectTransform queueContent,
-            out TicketQueueItemView queueItemTemplate)
+            out Level1TicketQueueItemView queueItemTemplate)
         {
             RectTransform panel = CreatePanel(
                 "TicketQueuePanel",
@@ -3351,7 +3351,7 @@ namespace MingBay.Editor
                 Vector2.zero,
                 new Vector2(-12f, 0f));
 
-            queueItemTemplate = queueItem.gameObject.AddComponent<TicketQueueItemView>();
+            queueItemTemplate = queueItem.gameObject.AddComponent<Level1TicketQueueItemView>();
             SerializedObject serializedItem = new(queueItemTemplate);
             SetObject(serializedItem, "button", queueButton);
             SetObject(serializedItem, "backgroundImage", queueItem.GetComponent<Image>());
@@ -4182,7 +4182,7 @@ namespace MingBay.Editor
         }
 
         private static void BindView(
-            MainGameView view,
+            Level1GameView view,
             GameObject ticketAppWindow,
             Button ticketAppCloseButton,
             Button workAppButton,
@@ -4190,7 +4190,7 @@ namespace MingBay.Editor
             Button taskbarWorkQueueButton,
             Button taskbarDatabaseButton,
             RectTransform queueContent,
-            TicketQueueItemView queueItemTemplate,
+            Level1TicketQueueItemView queueItemTemplate,
             GameObject[] ticketContentObjects,
             TMP_Text progressText,
             TMP_Text statusText,
@@ -4310,11 +4310,11 @@ namespace MingBay.Editor
         }
 
         private static void BindFlowManager(
-            GameFlowManager flowManager,
+            Level1GameFlowManager flowManager,
             MingBayProjectDatabase database,
             EvidenceManager evidenceManager,
             MetricManager metricManager,
-            MainGameView view)
+            Level1GameView view)
         {
             SerializedObject serializedFlow = new(flowManager);
             SetObject(serializedFlow, "database", database);
@@ -4456,7 +4456,7 @@ namespace MingBay.Editor
             EditorBuildSettings.scenes = new[]
             {
                 new EditorBuildSettingsScene(TitleScenePath, true),
-                new EditorBuildSettingsScene(GameScenePath, true)
+                new EditorBuildSettingsScene(Level1ScenePath, true)
             };
         }
 
@@ -4485,7 +4485,7 @@ namespace MingBay.Editor
             preview.Apply();
 
             string previewPath = Path.GetFullPath(
-                Path.Combine(Application.dataPath, "..", "Logs", "GameScenePreview.png"));
+                Path.Combine(Application.dataPath, "..", "Logs", "Level1ScenePreview.png"));
             File.WriteAllBytes(previewPath, preview.EncodeToPNG());
 
             canvas.renderMode = originalRenderMode;

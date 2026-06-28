@@ -1777,7 +1777,7 @@ MonoBehaviour:
   - {fileID: 2123730981}
   exitButton: {fileID: 1294645639}
   clockText: {fileID: 0}
-  gameSceneName: GameScene
+  gameSceneName: Level1Scene
 --- !u!4 &1831213432
 Transform:
   m_ObjectHideFlags: 0

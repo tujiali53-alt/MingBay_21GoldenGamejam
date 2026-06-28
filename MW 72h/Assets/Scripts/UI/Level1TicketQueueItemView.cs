@@ -11,8 +11,8 @@ namespace MingBay.UI
     /// 仅负责显示工单编号、类型和处理状态，不负责推进游戏流程。
     /// </summary>
     [DisallowMultipleComponent]
-    [AddComponentMenu("明湾/UI/工单队列项目")]
-    public sealed class TicketQueueItemView : MonoBehaviour
+    [AddComponentMenu("明湾/Level1/UI/工单队列项目")]
+    public sealed class Level1TicketQueueItemView : MonoBehaviour
     {
         [Header("交互组件")]
         [SerializeField]

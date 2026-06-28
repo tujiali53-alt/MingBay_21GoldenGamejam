@@ -18,7 +18,7 @@ namespace MingBay.Editor
     {
         // 场景和字体资源路径。修改目录结构时需要同步更新这里。
         private const string TitleScenePath = "Assets/Scenes/TitleScene.unity";
-        private const string GameScenePath = "Assets/Scenes/GameScene.unity";
+        private const string Level1ScenePath = "Assets/Scenes/Level1Scene.unity";
         private const string DefaultFontPath =
             "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset";
 
@@ -82,7 +82,7 @@ namespace MingBay.Editor
             SerializedObject serializedController = new(controller);
             serializedController.FindProperty("startButton").objectReferenceValue = startButton;
             serializedController.FindProperty("exitButton").objectReferenceValue = exitButton;
-            serializedController.FindProperty("gameSceneName").stringValue = "GameScene";
+            serializedController.FindProperty("gameSceneName").stringValue = "Level1Scene";
             serializedController.ApplyModifiedPropertiesWithoutUndo();
 
             EditorSceneManager.SaveScene(scene, TitleScenePath);
@@ -571,7 +571,7 @@ namespace MingBay.Editor
             EditorBuildSettings.scenes = new[]
             {
                 new EditorBuildSettingsScene(TitleScenePath, true),
-                new EditorBuildSettingsScene(GameScenePath, true)
+                new EditorBuildSettingsScene(Level1ScenePath, true)
             };
         }
 
@@ -596,7 +596,7 @@ namespace MingBay.Editor
     public static class TitleSceneBuilder
     {
         private const string TitleScenePath = "Assets/Scenes/TitleScene.unity";
-        private const string GameScenePath = "Assets/Scenes/GameScene.unity";
+        private const string Level1ScenePath = "Assets/Scenes/Level1Scene.unity";
         private static readonly string[] FontAssetPaths =
         {
             "Assets/UI/Fonts/NotoSansSC-Regular SDF.asset",
@@ -682,7 +682,7 @@ namespace MingBay.Editor
             additionalStartButtons.GetArrayElementAtIndex(0).objectReferenceValue = continueButton;
 
             serializedController.FindProperty("exitButton").objectReferenceValue = exitButton;
-            serializedController.FindProperty("gameSceneName").stringValue = "GameScene";
+            serializedController.FindProperty("gameSceneName").stringValue = "Level1Scene";
             serializedController.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -1595,7 +1595,7 @@ namespace MingBay.Editor
             EditorBuildSettings.scenes = new[]
             {
                 new EditorBuildSettingsScene(TitleScenePath, true),
-                new EditorBuildSettingsScene(GameScenePath, true)
+                new EditorBuildSettingsScene(Level1ScenePath, true)
             };
         }
 
