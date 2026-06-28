@@ -14,7 +14,7 @@ namespace MingBay.Editor
     /// 主菜单场景自动生成工具。
     /// 用于统一主菜单的基础层级、布局、配色和按钮绑定，避免多人手动搭建时出现差异。
     /// </summary>
-    public static class TitleSceneBuilder
+    public static class TitleSceneBuilderLegacy
     {
         // 场景和字体资源路径。修改目录结构时需要同步更新这里。
         private const string TitleScenePath = "Assets/Scenes/TitleScene.unity";
@@ -36,7 +36,7 @@ namespace MingBay.Editor
         /// 从空场景重新生成完整主菜单，并更新 Build Settings。
         /// 注意：执行后会覆盖当前的 TitleScene。
         /// </summary>
-        [MenuItem("明湾/场景工具/重新生成主菜单")]
+        [MenuItem("明湾/场景工具/重新生成主菜单（旧版）")]
         public static void Build()
         {
             TMP_FontAsset font = EnsureTmpResources();
@@ -578,6 +578,1027 @@ namespace MingBay.Editor
         /// <summary>
         /// 将十六进制颜色字符串转换为 Unity Color。
         /// </summary>
+        private static Color Hex(string value)
+        {
+            if (!ColorUtility.TryParseHtmlString($"#{value}", out Color color))
+            {
+                throw new System.ArgumentException($"Invalid color value: {value}");
+            }
+
+            return color;
+        }
+    }
+
+    /// <summary>
+    /// 新版标题界面生成器。
+    /// 生成黑底左侧文字主菜单：标题、开始、继续、设置、开发人员和退出按钮。
+    /// </summary>
+    public static class TitleSceneBuilder
+    {
+        private const string TitleScenePath = "Assets/Scenes/TitleScene.unity";
+        private const string GameScenePath = "Assets/Scenes/GameScene.unity";
+        private static readonly string[] FontAssetPaths =
+        {
+            "Assets/UI/Fonts/NotoSansSC-Regular SDF.asset",
+            "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset"
+        };
+
+        private static readonly Color Background = Hex("111111");
+        private static readonly Color OuterVoid = Hex("0C0C0C");
+        private static readonly Color TerminalBorder = Hex("3C3C3C");
+        private static readonly Color DesktopSurface = Hex("222222");
+        private static readonly Color TaskbarColor = Hex("575757");
+        private static readonly Color TaskbarDark = Hex("3B3B3B");
+        private static readonly Color IconPlate = Hex("8A8A8A");
+        private static readonly Color ActiveButton = Hex("C7E6D8");
+        private static readonly Color PanelGrey = Hex("D0D0D0");
+        private static readonly Color PrimaryText = Hex("F1F1F1");
+        private static readonly Color MutedText = Hex("B8B8B8");
+        private static readonly Color DimText = Hex("747474");
+        private static readonly Color AlertRed = Hex("E04D73");
+        private static readonly Color WarningRed = Hex("F08B91");
+
+        [MenuItem("明湾/场景工具/重新生成主菜单")]
+        public static void Build()
+        {
+            TMP_FontAsset font = EnsureTmpResources();
+            Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+
+            CreateCamera();
+            CreateEventSystem();
+
+            GameObject canvasObject = new("Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            Canvas canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+
+            CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+            scaler.matchWidthOrHeight = 0.5f;
+
+            RectTransform root = canvasObject.GetComponent<RectTransform>();
+            CreateImage("Background", root, Background, Vector2.zero, Vector2.one);
+            CreateImage(
+                "TopEdge",
+                root,
+                Hex("1B1B1B"),
+                new Vector2(0f, 1f),
+                Vector2.one,
+                new Vector2(0f, 8f),
+                new Vector2(0f, -4f));
+
+            CreateMinimalTitleMenu(
+                root,
+                font,
+                out Button startButton,
+                out Button continueButton,
+                out _,
+                out _,
+                out Button exitButton);
+            BindMenuController(startButton, continueButton, exitButton);
+
+            EditorSceneManager.SaveScene(scene, TitleScenePath);
+            UpdateBuildSettings();
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+
+            Debug.Log("TitleScene main menu UI generated successfully.");
+        }
+
+        private static void BindMenuController(
+            Button startButton,
+            Button continueButton,
+            Button exitButton)
+        {
+            GameObject controllerObject = new("MainMenuController");
+            MainMenuView controller = controllerObject.AddComponent<MainMenuView>();
+            SerializedObject serializedController = new(controller);
+            serializedController.FindProperty("startButton").objectReferenceValue = startButton;
+
+            SerializedProperty additionalStartButtons =
+                serializedController.FindProperty("additionalStartButtons");
+            additionalStartButtons.arraySize = 1;
+            additionalStartButtons.GetArrayElementAtIndex(0).objectReferenceValue = continueButton;
+
+            serializedController.FindProperty("exitButton").objectReferenceValue = exitButton;
+            serializedController.FindProperty("gameSceneName").stringValue = "GameScene";
+            serializedController.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void CreateMinimalTitleMenu(
+            RectTransform root,
+            TMP_FontAsset font,
+            out Button startButton,
+            out Button continueButton,
+            out Button settingsButton,
+            out Button developersButton,
+            out Button exitButton)
+        {
+            RectTransform menu = CreateRect(
+                "TitleMenu",
+                root,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(136f, -120f),
+                new Vector2(620f, 430f));
+            menu.pivot = new Vector2(0f, 0.5f);
+            menu.anchoredPosition = new Vector2(136f, -120f);
+
+            CreateText(
+                "Txt_Title",
+                menu,
+                font,
+                "明湾72h",
+                72f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.TopLeft,
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(0f, -92f),
+                Vector2.zero);
+
+            startButton = CreateTextMenuButton(
+                "Btn_StartNewGame",
+                menu,
+                font,
+                "开始新游戏",
+                54f,
+                new Vector2(0f, -148f),
+                new Vector2(430f, 68f));
+            continueButton = CreateTextMenuButton(
+                "Btn_ContinueGame",
+                menu,
+                font,
+                "继续游戏",
+                38f,
+                new Vector2(0f, -228f),
+                new Vector2(320f, 48f));
+            settingsButton = CreateTextMenuButton(
+                "Btn_Settings",
+                menu,
+                font,
+                "设置",
+                38f,
+                new Vector2(0f, -282f),
+                new Vector2(240f, 48f));
+            developersButton = CreateTextMenuButton(
+                "Btn_Developers",
+                menu,
+                font,
+                "开发人员名单",
+                38f,
+                new Vector2(0f, -336f),
+                new Vector2(360f, 48f));
+            exitButton = CreateTextMenuButton(
+                "Btn_ExitGame",
+                menu,
+                font,
+                "退出游戏",
+                38f,
+                new Vector2(0f, -390f),
+                new Vector2(300f, 48f));
+        }
+
+        private static Button CreateTextMenuButton(
+            string name,
+            RectTransform parent,
+            TMP_FontAsset font,
+            string label,
+            float fontSize,
+            Vector2 anchoredPosition,
+            Vector2 sizeDelta)
+        {
+            RectTransform rect = CreateRect(
+                name,
+                parent,
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                anchoredPosition,
+                sizeDelta);
+            rect.pivot = new Vector2(0f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+
+            Image target = rect.gameObject.AddComponent<Image>();
+            target.color = new Color(1f, 1f, 1f, 0f);
+
+            Button button = rect.gameObject.AddComponent<Button>();
+            button.targetGraphic = target;
+            ColorBlock colors = button.colors;
+            colors.normalColor = new Color(1f, 1f, 1f, 0f);
+            colors.highlightedColor = new Color(1f, 1f, 1f, 0.08f);
+            colors.pressedColor = new Color(1f, 1f, 1f, 0.16f);
+            colors.selectedColor = colors.highlightedColor;
+            colors.disabledColor = new Color(1f, 1f, 1f, 0f);
+            colors.fadeDuration = 0.08f;
+            button.colors = colors;
+
+            CreateText(
+                $"Txt_{name}",
+                rect,
+                font,
+                label,
+                fontSize,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.MidlineLeft,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+
+            return button;
+        }
+
+        private static void CreateDesktopTerminal(
+            RectTransform root,
+            TMP_FontAsset font,
+            out Button workAppButton,
+            out Button taskQueueButton,
+            out TMP_Text clockText)
+        {
+            RectTransform terminalFrame = CreateImage(
+                "MWT_TerminalFrame",
+                root,
+                TerminalBorder,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(1500f, 760f),
+                new Vector2(0f, -8f));
+
+            RectTransform desktop = CreateImage(
+                "DesktopSurface",
+                terminalFrame,
+                DesktopSurface,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(-26f, -26f),
+                Vector2.zero);
+
+            CreateCountdownBar(desktop, font);
+            workAppButton = CreateDesktopIcons(desktop, font);
+            CreateCenterLogo(desktop, font);
+            CreateMentorBubble(desktop, font);
+            CreateCursor(desktop, font);
+            CreateInputMethodWarning(desktop, font);
+            taskQueueButton = CreateBottomTaskbar(desktop, font, out clockText);
+            CreateGlobalStatusLayer(root);
+        }
+
+        private static void CreateCountdownBar(RectTransform desktop, TMP_FontAsset font)
+        {
+            RectTransform track = CreateImage(
+                "CountdownTrack",
+                desktop,
+                Hex("777777"),
+                new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f),
+                new Vector2(700f, 22f),
+                new Vector2(0f, -18f));
+
+            CreateImage(
+                "CountdownElapsed",
+                track,
+                AlertRed,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(220f, 14f),
+                new Vector2(111f, 0f));
+
+            CreateImage(
+                "CountdownTail",
+                track,
+                new Color(0.82f, 0.82f, 0.82f, 0.75f),
+                new Vector2(1f, 0.5f),
+                new Vector2(1f, 0.5f),
+                new Vector2(64f, 3f),
+                new Vector2(-34f, 0f));
+
+            CreateText(
+                "Txt_Countdown",
+                track,
+                font,
+                "T-72h",
+                18f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+        }
+
+        private static Button CreateDesktopIcons(RectTransform desktop, TMP_FontAsset font)
+        {
+            Button workAppButton = CreateDesktopIcon(
+                "Btn_WorkApp",
+                desktop,
+                font,
+                "icon",
+                "工单APP",
+                new Vector2(92f, -110f),
+                true);
+
+            CreateDesktopIcon(
+                "Btn_ClueNotebook",
+                desktop,
+                font,
+                "icon",
+                "线索笔记",
+                new Vector2(92f, -224f),
+                false);
+
+            return workAppButton;
+        }
+
+        private static Button CreateDesktopIcon(
+            string name,
+            RectTransform parent,
+            TMP_FontAsset font,
+            string iconText,
+            string label,
+            Vector2 anchoredPosition,
+            bool interactable)
+        {
+            RectTransform iconRoot = CreateRect(
+                $"{name}_Group",
+                parent,
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                anchoredPosition,
+                new Vector2(96f, 108f));
+
+            RectTransform buttonRect = CreateImage(
+                name,
+                iconRoot,
+                interactable ? Hex("303030") : IconPlate,
+                new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f),
+                new Vector2(58f, 58f),
+                new Vector2(0f, -32f));
+
+            Outline outline = buttonRect.gameObject.AddComponent<Outline>();
+            outline.effectColor = interactable
+                ? new Color(0.86f, 0.86f, 0.86f, 0.5f)
+                : new Color(0.86f, 0.86f, 0.86f, 0.18f);
+            outline.effectDistance = new Vector2(1f, -1f);
+
+            Button button = buttonRect.gameObject.AddComponent<Button>();
+            button.targetGraphic = buttonRect.GetComponent<Image>();
+            button.interactable = interactable;
+            ApplyDesktopButtonColors(button, interactable);
+
+            CreateText(
+                "Txt_Icon",
+                buttonRect,
+                font,
+                iconText,
+                13f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+
+            CreateText(
+                "Txt_Label",
+                iconRoot,
+                font,
+                label,
+                16f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Top,
+                new Vector2(0f, 0f),
+                new Vector2(1f, 0.34f),
+                Vector2.zero,
+                Vector2.zero);
+
+            return button;
+        }
+
+        private static void CreateCenterLogo(RectTransform desktop, TMP_FontAsset font)
+        {
+            RectTransform logoRoot = CreateRect(
+                "LogoGroup",
+                desktop,
+                new Vector2(0.5f, 0.58f),
+                new Vector2(0.5f, 0.58f),
+                Vector2.zero,
+                new Vector2(620f, 170f));
+
+            CreateLogoMark(logoRoot);
+
+            CreateText(
+                "Txt_MingBay",
+                logoRoot,
+                font,
+                "明 湾 通",
+                62f,
+                FontStyles.Bold,
+                new Color(0.72f, 0.72f, 0.72f, 0.34f),
+                TextAlignmentOptions.Center,
+                new Vector2(0f, 0.38f),
+                Vector2.one,
+                new Vector2(82f, 0f),
+                Vector2.zero);
+
+            CreateText(
+                "Txt_TerminalVersion",
+                logoRoot,
+                font,
+                "MWT-TERMINAL v2.7.1",
+                26f,
+                FontStyles.Bold,
+                new Color(0.72f, 0.72f, 0.72f, 0.28f),
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                new Vector2(1f, 0.42f),
+                new Vector2(82f, 0f),
+                Vector2.zero);
+        }
+
+        private static void CreateLogoMark(RectTransform logoRoot)
+        {
+            int[,] pattern =
+            {
+                {0, 1, 1, 1, 0},
+                {1, 0, 0, 0, 1},
+                {1, 0, 1, 0, 1},
+                {1, 0, 0, 0, 1},
+                {0, 1, 1, 1, 0}
+            };
+
+            RectTransform mark = CreateRect(
+                "LogoPixelMark",
+                logoRoot,
+                new Vector2(0f, 0.44f),
+                new Vector2(0f, 0.44f),
+                new Vector2(72f, 24f),
+                new Vector2(78f, 78f));
+
+            const float cell = 11f;
+            const float gap = 3f;
+            for (int row = 0; row < 5; row++)
+            {
+                for (int column = 0; column < 5; column++)
+                {
+                    if (pattern[row, column] == 0)
+                    {
+                        continue;
+                    }
+
+                    CreateImage(
+                        $"LogoCell_{column}_{row}",
+                        mark,
+                        new Color(0.72f, 0.72f, 0.72f, 0.28f),
+                        new Vector2(0f, 1f),
+                        new Vector2(0f, 1f),
+                        new Vector2(cell, cell),
+                        new Vector2(12f + column * (cell + gap), -12f - row * (cell + gap)));
+                }
+            }
+        }
+        private static void CreateMentorBubble(RectTransform desktop, TMP_FontAsset font)
+        {
+            RectTransform bubble = CreateImage(
+                "MentorBubble",
+                desktop,
+                PanelGrey,
+                new Vector2(0f, 0f),
+                new Vector2(0f, 0f),
+                new Vector2(520f, 96f),
+                new Vector2(215f, 130f));
+
+            RectTransform avatar = CreateImage(
+                "MentorAvatar",
+                bubble,
+                Hex("242424"),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(66f, 66f),
+                new Vector2(48f, 0f));
+
+            CreateText(
+                "Txt_AvatarFace",
+                avatar,
+                font,
+                "A07",
+                16f,
+                FontStyles.Bold,
+                MutedText,
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                new Vector2(0f, 14f));
+
+            CreateText(
+                "Txt_AvatarName",
+                avatar,
+                font,
+                "KKK",
+                16f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Bottom,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                new Vector2(0f, -4f));
+
+            CreateText(
+                "Txt_MentorHint",
+                bubble,
+                font,
+                "先点击工单APP，查看今日任务",
+                20f,
+                FontStyles.Bold,
+                Hex("181818"),
+                TextAlignmentOptions.MidlineLeft,
+                new Vector2(0f, 0f),
+                Vector2.one,
+                new Vector2(110f, 0f),
+                new Vector2(-26f, 0f));
+        }
+
+        private static void CreateCursor(RectTransform desktop, TMP_FontAsset font)
+        {
+            CreateText(
+                "Txt_CustomCursor",
+                desktop,
+                font,
+                "↖",
+                34f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Center,
+                new Vector2(0.72f, 0.36f),
+                new Vector2(0.72f, 0.36f),
+                new Vector2(-22f, -22f),
+                new Vector2(22f, 22f));
+        }
+
+        private static void CreateInputMethodWarning(RectTransform desktop, TMP_FontAsset font)
+        {
+            RectTransform inputPanel = CreateImage(
+                "InputMethod_A07Warning",
+                desktop,
+                Hex("8C8C8C"),
+                new Vector2(1f, 0f),
+                new Vector2(1f, 0f),
+                new Vector2(180f, 38f),
+                new Vector2(-114f, 112f));
+
+            Outline outline = inputPanel.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(AlertRed.r, AlertRed.g, AlertRed.b, 0.75f);
+            outline.effectDistance = new Vector2(1f, -1f);
+
+            CreateImage(
+                "AbnormalCaret",
+                inputPanel,
+                AlertRed,
+                new Vector2(1f, 0.5f),
+                new Vector2(1f, 0.5f),
+                new Vector2(14f, 3f),
+                new Vector2(-10f, 0f));
+
+            CreateText(
+                "Txt_InputState",
+                inputPanel,
+                font,
+                "中",
+                16f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.MidlineLeft,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(12f, 0f),
+                new Vector2(-12f, 0f));
+        }
+
+        private static Button CreateBottomTaskbar(
+            RectTransform desktop,
+            TMP_FontAsset font,
+            out TMP_Text clockText)
+        {
+            RectTransform taskbar = CreateImage(
+                "Taskbar",
+                desktop,
+                TaskbarColor,
+                Vector2.zero,
+                new Vector2(1f, 0f),
+                new Vector2(0f, 70f),
+                new Vector2(0f, 35f));
+
+            CreateWindowsGlyph(taskbar);
+
+            Button taskQueueButton = CreateTaskbarButton(
+                "Btn_TaskQueue",
+                taskbar,
+                font,
+                "工单队列",
+                new Vector2(120f, 0f),
+                ActiveButton,
+                Hex("1B1B1B"),
+                true);
+
+            CreateTaskbarButton(
+                "Btn_Database",
+                taskbar,
+                font,
+                "资料库",
+                new Vector2(365f, 0f),
+                Hex("D5D5D5"),
+                Hex("1B1B1B"),
+                false);
+
+            clockText = CreateRiskAndClock(taskbar, font);
+            return taskQueueButton;
+        }
+
+        private static void CreateWindowsGlyph(RectTransform taskbar)
+        {
+            RectTransform glyph = CreateRect(
+                "SystemGlyph",
+                taskbar,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(38f, 0f),
+                new Vector2(28f, 28f));
+
+            Color glyphColor = new Color(0.82f, 0.91f, 0.94f, 0.95f);
+            CreateImage("Pane01", glyph, glyphColor, new Vector2(0f, 0.52f), new Vector2(0.44f, 1f));
+            CreateImage("Pane02", glyph, glyphColor, new Vector2(0.52f, 0.52f), Vector2.one);
+            CreateImage("Pane03", glyph, glyphColor, Vector2.zero, new Vector2(0.44f, 0.44f));
+            CreateImage("Pane04", glyph, glyphColor, new Vector2(0.52f, 0f), new Vector2(1f, 0.44f));
+        }
+
+        private static Button CreateTaskbarButton(
+            string name,
+            RectTransform parent,
+            TMP_FontAsset font,
+            string label,
+            Vector2 anchoredPosition,
+            Color background,
+            Color textColor,
+            bool interactable)
+        {
+            RectTransform rect = CreateImage(
+                name,
+                parent,
+                background,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(210f, 42f),
+                anchoredPosition);
+
+            Button button = rect.gameObject.AddComponent<Button>();
+            button.targetGraphic = rect.GetComponent<Image>();
+            button.interactable = interactable;
+
+            ColorBlock colors = button.colors;
+            colors.normalColor = background;
+            colors.highlightedColor = Color.Lerp(background, PrimaryText, 0.12f);
+            colors.pressedColor = Color.Lerp(background, Color.black, 0.14f);
+            colors.selectedColor = colors.highlightedColor;
+            colors.disabledColor = background;
+            colors.colorMultiplier = 1f;
+            colors.fadeDuration = 0.08f;
+            button.colors = colors;
+
+            RectTransform miniIcon = CreateImage(
+                "MiniIcon",
+                rect,
+                Hex("EFEFEF"),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(28f, 28f),
+                new Vector2(22f, 0f));
+
+            CreateText(
+                "Txt_MiniIcon",
+                miniIcon,
+                font,
+                "icon",
+                8f,
+                FontStyles.Bold,
+                Hex("202020"),
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+
+            CreateText(
+                "Txt_Label",
+                rect,
+                font,
+                label,
+                15f,
+                FontStyles.Bold,
+                textColor,
+                TextAlignmentOptions.MidlineLeft,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(58f, 0f),
+                new Vector2(-8f, 0f));
+
+            return button;
+        }
+
+        private static TMP_Text CreateRiskAndClock(RectTransform taskbar, TMP_FontAsset font)
+        {
+            RectTransform riskRoot = CreateRect(
+                "A07RiskCluster",
+                taskbar,
+                new Vector2(1f, 0.5f),
+                new Vector2(1f, 0.5f),
+                new Vector2(-330f, 0f),
+                new Vector2(250f, 46f));
+
+            RectTransform warning = CreateImage(
+                "WarningTriangle",
+                riskRoot,
+                WarningRed,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(30f, 30f),
+                new Vector2(15f, 0f));
+
+            CreateText(
+                "Txt_Warning",
+                warning,
+                font,
+                "!",
+                22f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+
+            CreateText(
+                "Txt_RiskLabel",
+                riskRoot,
+                font,
+                "A07 异常指示",
+                13f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.TopLeft,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(48f, 2f),
+                Vector2.zero);
+
+            RectTransform track = CreateImage(
+                "RiskTrack",
+                riskRoot,
+                Hex("2F2F2F"),
+                new Vector2(0f, 0f),
+                new Vector2(0f, 0f),
+                new Vector2(136f, 10f),
+                new Vector2(118f, 11f));
+
+            for (int index = 0; index < 11; index++)
+            {
+                CreateImage(
+                    $"RiskSegment_{index:00}",
+                    track,
+                    index < 8 ? AlertRed : DimText,
+                    new Vector2(0f, 0.5f),
+                    new Vector2(0f, 0.5f),
+                    new Vector2(8f, 10f),
+                    new Vector2(6f + index * 11f, 0f));
+            }
+
+            RectTransform clock = CreateImage(
+                "ClockPanel",
+                taskbar,
+                TaskbarDark,
+                new Vector2(1f, 0.5f),
+                new Vector2(1f, 0.5f),
+                new Vector2(144f, 42f),
+                new Vector2(-92f, 0f));
+
+            TMP_Text clockText = CreateText(
+                "Txt_Clock",
+                clock,
+                font,
+                "下午9:10",
+                16f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                new Vector2(0f, 7f));
+
+            CreateImage(
+                "ClockUnderline",
+                clock,
+                PrimaryText,
+                new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f),
+                new Vector2(42f, 3f),
+                new Vector2(0f, 10f));
+
+            return clockText;
+        }
+
+        private static void CreateGlobalStatusLayer(RectTransform root)
+        {
+            CreateImage(
+                "AlwaysOnTopStatusLayer",
+                root,
+                Hex("6A6A6A"),
+                new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f),
+                new Vector2(600f, 36f),
+                new Vector2(0f, 112f));
+        }
+
+        private static void ApplyDesktopButtonColors(Button button, bool interactable)
+        {
+            ColorBlock colors = button.colors;
+            colors.normalColor = interactable
+                ? Hex("303030")
+                : IconPlate;
+            colors.highlightedColor = interactable
+                ? Hex("464646")
+                : IconPlate;
+            colors.pressedColor = interactable
+                ? Hex("242424")
+                : IconPlate;
+            colors.selectedColor = colors.highlightedColor;
+            colors.disabledColor = interactable ? colors.normalColor : IconPlate;
+            colors.colorMultiplier = 1f;
+            colors.fadeDuration = 0.08f;
+            button.colors = colors;
+        }
+
+        private static TMP_FontAsset EnsureTmpResources()
+        {
+            foreach (string fontPath in FontAssetPaths)
+            {
+                TMP_FontAsset font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(fontPath);
+                if (font != null)
+                {
+                    return font;
+                }
+            }
+
+            throw new FileNotFoundException(
+                "TMP font assets are missing from the project.",
+                FontAssetPaths[0]);
+        }
+
+        private static void CreateCamera()
+        {
+            GameObject cameraObject = new("Main Camera", typeof(Camera), typeof(AudioListener));
+            cameraObject.tag = "MainCamera";
+            cameraObject.transform.position = new Vector3(0f, 0f, -10f);
+
+            Camera camera = cameraObject.GetComponent<Camera>();
+            camera.clearFlags = CameraClearFlags.SolidColor;
+            camera.backgroundColor = Background;
+            camera.orthographic = true;
+        }
+
+        private static void CreateEventSystem()
+        {
+            new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+        }
+
+        private static void CapturePreview(Canvas canvas, Camera camera)
+        {
+            const int width = 1920;
+            const int height = 1080;
+
+            RenderMode originalRenderMode = canvas.renderMode;
+            Camera originalWorldCamera = canvas.worldCamera;
+            RenderTexture originalTarget = camera.targetTexture;
+            RenderTexture originalActive = RenderTexture.active;
+
+            RenderTexture renderTexture = new(width, height, 24, RenderTextureFormat.ARGB32);
+            Texture2D preview = new(width, height, TextureFormat.RGB24, false);
+
+            canvas.renderMode = RenderMode.ScreenSpaceCamera;
+            canvas.worldCamera = camera;
+            canvas.planeDistance = 1f;
+            camera.targetTexture = renderTexture;
+
+            Canvas.ForceUpdateCanvases();
+            camera.Render();
+            RenderTexture.active = renderTexture;
+            preview.ReadPixels(new Rect(0f, 0f, width, height), 0, 0);
+            preview.Apply();
+
+            string previewDirectory = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "Logs"));
+            Directory.CreateDirectory(previewDirectory);
+            string previewPath = Path.Combine(previewDirectory, "TitleScenePreview.png");
+            File.WriteAllBytes(previewPath, preview.EncodeToPNG());
+            Debug.Log($"TitleScene preview saved to: {previewPath}");
+
+            canvas.renderMode = originalRenderMode;
+            canvas.worldCamera = originalWorldCamera;
+            camera.targetTexture = originalTarget;
+            RenderTexture.active = originalActive;
+
+            Object.DestroyImmediate(preview);
+            renderTexture.Release();
+            Object.DestroyImmediate(renderTexture);
+        }
+
+        private static RectTransform CreateImage(
+            string name,
+            RectTransform parent,
+            Color color,
+            Vector2 anchorMin,
+            Vector2 anchorMax,
+            Vector2? sizeDelta = null,
+            Vector2? anchoredPosition = null)
+        {
+            RectTransform rect = CreateRect(
+                name,
+                parent,
+                anchorMin,
+                anchorMax,
+                anchoredPosition ?? Vector2.zero,
+                sizeDelta ?? Vector2.zero);
+            Image image = rect.gameObject.AddComponent<Image>();
+            image.color = color;
+            return rect;
+        }
+
+        private static TextMeshProUGUI CreateText(
+            string name,
+            RectTransform parent,
+            TMP_FontAsset font,
+            string content,
+            float fontSize,
+            FontStyles fontStyle,
+            Color color,
+            TextAlignmentOptions alignment,
+            Vector2 anchorMin,
+            Vector2 anchorMax,
+            Vector2 offsetMin,
+            Vector2 offsetMax)
+        {
+            RectTransform rect = CreateRect(name, parent, anchorMin, anchorMax, Vector2.zero, Vector2.zero);
+            rect.offsetMin = offsetMin;
+            rect.offsetMax = offsetMax;
+
+            TextMeshProUGUI text = rect.gameObject.AddComponent<TextMeshProUGUI>();
+            text.font = font;
+            text.text = content;
+            text.fontSize = fontSize;
+            text.fontStyle = fontStyle;
+            text.color = color;
+            text.alignment = alignment;
+            text.textWrappingMode = TextWrappingModes.Normal;
+            text.raycastTarget = false;
+            text.overflowMode = TextOverflowModes.Overflow;
+            return text;
+        }
+
+        private static RectTransform CreateRect(
+            string name,
+            RectTransform parent,
+            Vector2 anchorMin,
+            Vector2 anchorMax,
+            Vector2 anchoredPosition,
+            Vector2 sizeDelta)
+        {
+            GameObject gameObject = new(name, typeof(RectTransform));
+            RectTransform rect = gameObject.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = anchorMin;
+            rect.anchorMax = anchorMax;
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = sizeDelta;
+            return rect;
+        }
+
+        private static void UpdateBuildSettings()
+        {
+            EditorBuildSettings.scenes = new[]
+            {
+                new EditorBuildSettingsScene(TitleScenePath, true),
+                new EditorBuildSettingsScene(GameScenePath, true)
+            };
+        }
+
         private static Color Hex(string value)
         {
             if (!ColorUtility.TryParseHtmlString($"#{value}", out Color color))

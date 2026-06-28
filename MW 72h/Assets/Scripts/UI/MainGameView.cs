@@ -1,9 +1,11 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using MingBay.Core;
 using MingBay.Data;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.Serialization;
 using UnityEngine.UI;
 
@@ -17,6 +19,36 @@ namespace MingBay.UI
     [AddComponentMenu("明湾/UI/游戏主界面")]
     public sealed class MainGameView : MonoBehaviour
     {
+        [Header("桌面入口")]
+        [SerializeField]
+        [InspectorName("工单 APP 窗口")]
+        [Tooltip("点击桌面或任务栏入口后显示的工单窗口根节点。")]
+        private GameObject ticketAppWindow;
+
+        [SerializeField]
+        [InspectorName("Ticket App Close Button")]
+        private Button ticketAppCloseButton;
+
+        [SerializeField]
+        [InspectorName("桌面工单 APP 按钮")]
+        [Tooltip("主界面左上角的工单 APP 入口。")]
+        private Button workAppButton;
+
+        [SerializeField]
+        [InspectorName("桌面线索笔记按钮")]
+        [Tooltip("主界面左上角的线索笔记入口。")]
+        private Button clueNotebookButton;
+
+        [SerializeField]
+        [InspectorName("任务栏工单队列按钮")]
+        [Tooltip("任务栏中的工单队列入口。")]
+        private Button taskbarWorkQueueButton;
+
+        [SerializeField]
+        [InspectorName("任务栏资料库按钮")]
+        [Tooltip("任务栏中的资料库入口。")]
+        private Button taskbarDatabaseButton;
+
         [Header("工单队列")]
         [SerializeField]
         [InspectorName("工单队列容器")]
@@ -62,8 +94,13 @@ namespace MingBay.UI
 
         [SerializeField]
         [InspectorName("工单摘要文本")]
-        [Tooltip("显示用户、区域、类型和等待时间。")]
+        [Tooltip("显示用户、用户情绪和区域。")]
         private TMP_Text ticketMetaText;
+
+        [SerializeField]
+        [InspectorName("工单号文本")]
+        [Tooltip("显示当前工单编号，固定在工单信息面板右下角。")]
+        private TMP_Text ticketIdText;
 
         [SerializeField]
         [InspectorName("用户消息文本")]
@@ -75,11 +112,47 @@ namespace MingBay.UI
         [Tooltip("显示系统自动回复内容。")]
         private TMP_Text aiReplyText;
 
+        [SerializeField]
+        [InspectorName("聊天滚动组件")]
+        [Tooltip("聊天区 ScrollRect。新内容出现后会自动滚动到底部。")]
+        private ScrollRect chatScrollRect;
+
+        [SerializeField]
+        [InspectorName("聊天内容容器")]
+        [Tooltip("运行时生成对话气泡的父节点。")]
+        private RectTransform chatContent;
+
+        [SerializeField]
+        [InspectorName("聊天气泡模板")]
+        [Tooltip("隐藏模板，运行时复制生成用户和系统对话。")]
+        private GameObject chatBubbleTemplate;
+
+        [SerializeField]
+        [InspectorName("聊天空状态")]
+        [Tooltip("未选择工单时显示在聊天区中央的提示。")]
+        private GameObject chatEmptyState;
+
+        [SerializeField]
+        [InspectorName("对话间隔秒数")]
+        [Tooltip("连续生成对话时，每条之间停留的时间。")]
+        private float dialogueRevealDelay = 0.75f;
+
+        [SerializeField]
+        [Min(0f)]
+        [InspectorName("Popup Delay After Dialogue")]
+        [Tooltip("Delay before opening notebook/result popups after the final dialogue bubble appears.")]
+        private float popupDelayAfterDialogueSeconds = 0.35f;
+
         [Header("资料面板")]
         [SerializeField]
         [InspectorName("资料面板对象")]
         [Tooltip("点击“查看资料”后显示的完整资料面板。")]
         private GameObject dataPanel;
+
+        [SerializeField]
+        [InspectorName("资料滚动组件")]
+        [Tooltip("右侧资料库窗口的 ScrollRect，资料过多时可滚轮滚动。")]
+        private ScrollRect dataScrollRect;
 
         [SerializeField]
         [InspectorName("用户资料文本")]
@@ -101,12 +174,29 @@ namespace MingBay.UI
         [Tooltip("显示区域标签或维护状态。")]
         private TMP_Text regionStatusText;
 
+        [SerializeField]
+        private GameObject evidenceDetailOverlay;
+
+        [SerializeField]
+        private TMP_Text evidenceDetailTitleText;
+
+        [SerializeField]
+        private TMP_Text evidenceDetailBodyText;
+
+        [SerializeField]
+        private Button evidenceDetailCloseButton;
+
         [Header("操作按钮")]
         [SerializeField]
         [FormerlySerializedAs("viewDataButton")]
         [InspectorName("主操作按钮")]
-        [Tooltip("初始显示“查看资料”，资料展开后切换为“追问”。")]
+        [Tooltip("追问按钮。有下一句追问时为绿色，没有后续追问时变灰。")]
         private Button primaryActionButton;
+
+        [SerializeField]
+        [InspectorName("资料库查找按钮")]
+        [Tooltip("点击后展开或刷新资料区。")]
+        private Button dataLookupButton;
 
         [SerializeField]
         [FormerlySerializedAs("saveEvidenceButton")]
@@ -121,13 +211,73 @@ namespace MingBay.UI
 
         [SerializeField]
         [InspectorName("标记已解决按钮")]
-        [Tooltip("玩家决定关闭工单时使用。查看资料前保持不可点击。")]
+        [Tooltip("玩家长按后关闭工单。查看资料前保持不可点击。")]
         private Button markResolvedButton;
+
+        [SerializeField]
+        [InspectorName("标记已解决长按读条")]
+        [Tooltip("绑定到按钮内部的 Image，长按时从 0 填充到 1。")]
+        private Image markResolvedHoldFill;
+
+        [SerializeField]
+        [InspectorName("标记已解决长按秒数")]
+        [Tooltip("暂定 1 秒。长按达到该时长后才触发关闭工单。")]
+        private float markResolvedHoldSeconds = 1f;
 
         [SerializeField]
         [InspectorName("聊天证据操作按钮")]
         [Tooltip("显示在 AI 聊天气泡中的“出示证据/完成对话”按钮。旧场景未绑定时会在运行时自动创建。")]
         private Button chatEvidenceActionButton;
+
+        [Header("笔记面板")]
+        [SerializeField]
+        [InspectorName("笔记面板对象")]
+        [Tooltip("转人工后显示的笔记面板，用于选择已收集资料并提交证据。")]
+        private GameObject notebookPanel;
+
+        [SerializeField]
+        [InspectorName("笔记工单原因")]
+        private TMP_Text notebookReasonText;
+
+        [SerializeField]
+        [InspectorName("笔记用户名")]
+        private TMP_Text notebookUserText;
+
+        [SerializeField]
+        [InspectorName("笔记用户情绪")]
+        private TMP_Text notebookEmotionText;
+
+        [SerializeField]
+        [InspectorName("笔记区域信息")]
+        private TMP_Text notebookRegionText;
+
+        [SerializeField]
+        [InspectorName("笔记工单号")]
+        private TMP_Text notebookTicketIdText;
+
+        [SerializeField]
+        [InspectorName("笔记资料按钮")]
+        private Button[] notebookEvidenceButtons;
+
+        [SerializeField]
+        [InspectorName("笔记资料文本")]
+        private TMP_Text[] notebookEvidenceTexts;
+
+        [SerializeField]
+        [InspectorName("笔记资料高亮")]
+        private Outline[] notebookEvidenceOutlines;
+
+        [SerializeField]
+        [InspectorName("笔记关闭按钮")]
+        private Button notebookCloseButton;
+
+        [SerializeField]
+        [InspectorName("我再想想按钮")]
+        private Button notebookCancelButton;
+
+        [SerializeField]
+        [InspectorName("提交证据按钮")]
+        private Button notebookSubmitButton;
 
         [Header("结果面板")]
         [SerializeField]
@@ -139,6 +289,11 @@ namespace MingBay.UI
         [InspectorName("结果标题文本")]
         [Tooltip("显示“证据核验正确”“证据核验错误”或“工单已关闭”等结果标题。")]
         private TMP_Text resultTitleText;
+
+        [SerializeField]
+        [InspectorName("结果状态文本")]
+        [Tooltip("显示工单已关闭等结算状态。")]
+        private TMP_Text resultStatusText;
 
         [SerializeField]
         [InspectorName("结果说明文本")]
@@ -163,19 +318,33 @@ namespace MingBay.UI
         public event Action SaveEvidenceRequested;
         public event Action ChatEvidenceActionRequested;
         public event Action<int> EvidenceSelected;
+        public event Action NotebookCancelRequested;
         public event Action MarkResolvedRequested;
         public event Action ResultActionRequested;
 
+        private const int NotebookEvidenceSlotCount = 4;
+
         private readonly List<TicketQueueItemView> queueItems = new();
         private readonly Button[] evidenceButtons = new Button[4];
+        private readonly Button[] evidenceDetailButtons = new Button[4];
+        private readonly Button[] evidenceCollectButtons = new Button[4];
+        private readonly GameObject[] evidenceActionRows = new GameObject[4];
+        private readonly LayoutElement[] evidenceCardLayouts = new LayoutElement[4];
         private TMP_Text resultActionButtonText;
         private TMP_Text primaryActionButtonText;
         private TMP_Text transferHumanButtonText;
         private TMP_Text saveEvidenceButtonText;
+        private TMP_Text dataLookupButtonText;
         private TMP_Text chatEvidenceActionButtonText;
-        private bool dataExpanded;
         private bool resolveTutorialHintVisible;
         private ColorBlock defaultMarkResolvedColors;
+        private ColorBlock defaultFollowUpColors;
+        private Coroutine dialogueRoutine;
+        private bool isHoldingMarkResolved;
+        private float markResolvedHoldTimer;
+        private bool markResolvedHoldTriggered;
+        private bool hasActiveTicketContent;
+        private int selectedNotebookEvidenceIndex = -1;
 
         private void Awake()
         {
@@ -185,15 +354,62 @@ namespace MingBay.UI
             ConfigureConversationText();
             if (markResolvedButton != null)
             {
-                defaultMarkResolvedColors = markResolvedButton.colors;
+                ApplyMarkResolvedDefaultColors();
+                ConfigureLongPressButton(markResolvedButton);
+            }
+
+            if (primaryActionButton != null)
+            {
+                defaultFollowUpColors = primaryActionButton.colors;
+            }
+
+            SetTicketAppWindowVisible(false);
+            SetTicketContentVisible(true);
+            SetDataPanelVisible(false);
+            SetNotebookPanelVisible(false);
+            SetEvidenceDetailVisible(false);
+            if (resultPanel != null)
+            {
+                resultPanel.SetActive(false);
             }
         }
 
         private void OnEnable()
         {
+            if (workAppButton != null)
+            {
+                workAppButton.onClick.AddListener(OpenWorkApp);
+            }
+
+            if (ticketAppCloseButton != null)
+            {
+                ticketAppCloseButton.onClick.AddListener(CloseWorkApp);
+            }
+
+            if (taskbarWorkQueueButton != null)
+            {
+                taskbarWorkQueueButton.onClick.AddListener(OpenWorkApp);
+            }
+
+            if (clueNotebookButton != null)
+            {
+                clueNotebookButton.onClick.AddListener(OpenClueNotebook);
+            }
+
+            if (taskbarDatabaseButton != null)
+            {
+                taskbarDatabaseButton.onClick.AddListener(OpenWorkApp);
+                taskbarDatabaseButton.onClick.AddListener(NotifyViewDataRequested);
+            }
+
             if (primaryActionButton != null)
             {
-                primaryActionButton.onClick.AddListener(NotifyPrimaryActionRequested);
+                primaryActionButton.onClick.AddListener(NotifyFollowUpRequested);
+            }
+
+            if (dataLookupButton != null)
+            {
+                dataLookupButton.onClick.AddListener(NotifyViewDataRequested);
             }
 
             if (transferHumanButton != null)
@@ -211,22 +427,70 @@ namespace MingBay.UI
                 chatEvidenceActionButton.onClick.AddListener(NotifyChatEvidenceActionRequested);
             }
 
-            if (markResolvedButton != null)
+            if (notebookCloseButton != null)
             {
-                markResolvedButton.onClick.AddListener(NotifyMarkResolvedRequested);
+                notebookCloseButton.onClick.AddListener(NotifyNotebookCancelRequested);
             }
+
+            if (notebookCancelButton != null)
+            {
+                notebookCancelButton.onClick.AddListener(NotifyNotebookCancelRequested);
+            }
+
+            if (notebookSubmitButton != null)
+            {
+                notebookSubmitButton.onClick.AddListener(NotifyChatEvidenceActionRequested);
+            }
+
+            AddNotebookEvidenceListeners();
 
             if (resultActionButton != null)
             {
                 resultActionButton.onClick.AddListener(NotifyResultActionRequested);
             }
+
+            if (evidenceDetailCloseButton != null)
+            {
+                evidenceDetailCloseButton.onClick.AddListener(CloseEvidenceDetail);
+            }
         }
 
         private void OnDisable()
         {
+            if (workAppButton != null)
+            {
+                workAppButton.onClick.RemoveListener(OpenWorkApp);
+            }
+
+            if (ticketAppCloseButton != null)
+            {
+                ticketAppCloseButton.onClick.RemoveListener(CloseWorkApp);
+            }
+
+            if (taskbarWorkQueueButton != null)
+            {
+                taskbarWorkQueueButton.onClick.RemoveListener(OpenWorkApp);
+            }
+
+            if (clueNotebookButton != null)
+            {
+                clueNotebookButton.onClick.RemoveListener(OpenClueNotebook);
+            }
+
+            if (taskbarDatabaseButton != null)
+            {
+                taskbarDatabaseButton.onClick.RemoveListener(OpenWorkApp);
+                taskbarDatabaseButton.onClick.RemoveListener(NotifyViewDataRequested);
+            }
+
             if (primaryActionButton != null)
             {
-                primaryActionButton.onClick.RemoveListener(NotifyPrimaryActionRequested);
+                primaryActionButton.onClick.RemoveListener(NotifyFollowUpRequested);
+            }
+
+            if (dataLookupButton != null)
+            {
+                dataLookupButton.onClick.RemoveListener(NotifyViewDataRequested);
             }
 
             if (transferHumanButton != null)
@@ -244,15 +508,55 @@ namespace MingBay.UI
                 chatEvidenceActionButton.onClick.RemoveListener(NotifyChatEvidenceActionRequested);
             }
 
-            if (markResolvedButton != null)
+            if (notebookCloseButton != null)
             {
-                markResolvedButton.onClick.RemoveListener(NotifyMarkResolvedRequested);
+                notebookCloseButton.onClick.RemoveListener(NotifyNotebookCancelRequested);
             }
+
+            if (notebookCancelButton != null)
+            {
+                notebookCancelButton.onClick.RemoveListener(NotifyNotebookCancelRequested);
+            }
+
+            if (notebookSubmitButton != null)
+            {
+                notebookSubmitButton.onClick.RemoveListener(NotifyChatEvidenceActionRequested);
+            }
+
+            RemoveNotebookEvidenceListeners();
 
             if (resultActionButton != null)
             {
                 resultActionButton.onClick.RemoveListener(NotifyResultActionRequested);
             }
+
+            if (evidenceDetailCloseButton != null)
+            {
+                evidenceDetailCloseButton.onClick.RemoveListener(CloseEvidenceDetail);
+            }
+        }
+
+        private void Update()
+        {
+            if (!isHoldingMarkResolved || markResolvedHoldTriggered)
+            {
+                return;
+            }
+
+            markResolvedHoldTimer += Time.unscaledDeltaTime;
+            float progress = markResolvedHoldSeconds <= 0f
+                ? 1f
+                : Mathf.Clamp01(markResolvedHoldTimer / markResolvedHoldSeconds);
+            SetResolveHoldFill(progress);
+
+            if (progress < 1f)
+            {
+                return;
+            }
+
+            markResolvedHoldTriggered = true;
+            isHoldingMarkResolved = false;
+            NotifyMarkResolvedRequested();
         }
 
         /// <summary>
@@ -281,6 +585,16 @@ namespace MingBay.UI
             }
 
             queueItems.Clear();
+            if (ticketQueueContent != null)
+            {
+                ticketQueueContent.anchorMin = new Vector2(0f, 1f);
+                ticketQueueContent.anchorMax = new Vector2(1f, 1f);
+                ticketQueueContent.pivot = new Vector2(0.5f, 1f);
+                ticketQueueContent.anchoredPosition = Vector2.zero;
+                ticketQueueContent.sizeDelta = new Vector2(
+                    0f,
+                    Mathf.Max(0f, tickets.Count * 104f));
+            }
 
             for (int index = 0; index < tickets.Count; index++)
             {
@@ -312,11 +626,40 @@ namespace MingBay.UI
                 $"{stageName}  ·  已处理 {processedCount} / {totalCount}";
             statusText.text = "状态：请选择左侧工单";
             UpdateMetricHeader(metrics);
+            ticketTitleText.text = "未知";
+            ticketMetaText.text =
+                "用户：未知    用户情绪：未知\n" +
+                "区域：未知";
+            SetTicketIdText("#XXXXXXXX");
 
-            SetTicketContentVisible(false);
+            hasActiveTicketContent = false;
+            SetTicketContentVisible(true);
+            SetDataPanelVisible(false);
+            SetNotebookPanelVisible(false);
+            SetEvidenceDetailVisible(false);
+            ShowEmptyChatState(true);
+            ClearChatMessages();
             resultPanel.SetActive(false);
             resolveTutorialHintVisible = false;
             RestoreMarkResolvedHighlight();
+            ResetEvidenceActionRows();
+            SetFollowUpButtonState(false);
+            if (dataLookupButton != null)
+            {
+                dataLookupButton.interactable = false;
+            }
+            if (transferHumanButton != null)
+            {
+                transferHumanButton.interactable = false;
+            }
+            if (saveEvidenceButton != null)
+            {
+                saveEvidenceButton.interactable = false;
+            }
+            if (markResolvedButton != null)
+            {
+                markResolvedButton.interactable = false;
+            }
             SetEvidenceButtonsInteractable(false);
             RefreshQueueStates(-1, processedStates);
         }
@@ -335,25 +678,47 @@ namespace MingBay.UI
                 $"{stageName}  ·  工单 {currentIndex} / {totalCount}  ·  {ticket.TicketId}";
             statusText.text = "状态：等待核验";
             UpdateMetricHeader(metrics);
-            ticketTitleText.text = ticket.Title;
+            ticketTitleText.text = $"{ticket.IssueType}：{ticket.Title}";
             ticketMetaText.text =
-                $"用户：{ticket.UserName}\n区域：{ticket.Region}\n类型：{ticket.IssueType}\n{ticket.WaitTimeText}";
-            userMessageText.text = ticket.UserMessage;
-            aiReplyText.text = ticket.AiReply;
+                $"用户：{ticket.UserName}    用户情绪：愤怒\n" +
+                $"区域：{ticket.Region}";
+            SetTicketIdText($"#{ticket.TicketId}");
+            if (ticket.InitialDialogueLines != null &&
+                ticket.InitialDialogueLines.Length > 0)
+            {
+                PlayTicketDialogue(ticket.InitialDialogueLines, true);
+            }
+            else
+            {
+            ShowDialogueSequence(
+                ("求助 " + ticket.UserName, ticket.UserMessage, true),
+                ("明湾通 AI", ticket.AiReply, false));
 
+            }
+
+            hasActiveTicketContent = true;
+            SetTicketAppWindowVisible(true);
             SetTicketContentVisible(true);
-            dataPanel.SetActive(false);
+            SetDataPanelVisible(false);
+            SetNotebookPanelVisible(false);
+            SetEvidenceDetailVisible(false);
+            ResetEvidenceActionRows();
             resultPanel.SetActive(false);
             resolveTutorialHintVisible = false;
             RestoreMarkResolvedHighlight();
-            dataExpanded = false;
-            SetButtonLabel(primaryActionButtonText, "查看资料");
+            SetButtonLabel(primaryActionButtonText, "追问");
+            SetButtonLabel(dataLookupButtonText, "资料库查找");
             SetButtonLabel(transferHumanButtonText, "转人工");
             SetButtonLabel(saveEvidenceButtonText, "保留证据");
-            primaryActionButton.interactable = true;
+            SetFollowUpButtonState(ticket.FollowUpLines.Length > 0);
+            if (dataLookupButton != null)
+            {
+                dataLookupButton.interactable = true;
+            }
             transferHumanButton.interactable = false;
             saveEvidenceButton.interactable = false;
-            markResolvedButton.interactable = false;
+            markResolvedButton.interactable = true;
+            ResetResolveHold();
             chatEvidenceActionButton.gameObject.SetActive(false);
             SetEvidenceButtonsInteractable(false);
         }
@@ -367,20 +732,18 @@ namespace MingBay.UI
             bool stagedEvidenceFlow =
                 ticket.AllowDirectEvidenceSave && ticket.HasEvidence;
 
-            if (tutorialEvidenceLayout)
-            {
-                profileText.text = $"01：{ticket.ProfileText}";
-                historyText.text = $"02：{ticket.HistoryText}";
-            }
-            else
-            {
-                profileText.text = $"资料01｜用户资料\n{ticket.ProfileText}";
-                historyText.text = $"资料02｜历史工单记录\n{ticket.HistoryText}";
-                deviceLogText.text = $"资料03｜AI 处理建议\n{ticket.DeviceLogText}";
-                regionStatusText.text = $"资料04｜设备 / 系统日志\n{ticket.RegionStatusText}";
-            }
+            profileText.text = ticket.ProfileText;
+            historyText.text = ticket.HistoryText;
+            deviceLogText.text = ticket.DeviceLogText;
+            regionStatusText.text = ticket.RegionStatusText;
 
-            dataPanel.SetActive(true);
+            hasActiveTicketContent = true;
+            SetTicketAppWindowVisible(true);
+            SetTicketContentVisible(true);
+            SetDataPanelVisible(true);
+            SetNotebookPanelVisible(false);
+            SetEvidenceDetailVisible(false);
+            ResetEvidenceActionRows();
             ConfigureEvidenceCardLayout(tutorialEvidenceLayout);
             if (stagedEvidenceFlow)
             {
@@ -390,14 +753,18 @@ namespace MingBay.UI
                 AddEvidenceRetentionHint(regionStatusText);
             }
 
-            dataExpanded = true;
             statusText.text = "状态：请选择追问、转人工、保留证据或标记已解决";
             SetButtonLabel(primaryActionButtonText, "追问");
-            primaryActionButton.interactable = true;
+            SetFollowUpButtonState(ticket.FollowUpLines.Length > 0);
+            if (dataLookupButton != null)
+            {
+                dataLookupButton.interactable = true;
+            }
             transferHumanButton.interactable = true;
             saveEvidenceButton.interactable = false;
             markResolvedButton.interactable = true;
-            SetEvidenceButtonsInteractable(stagedEvidenceFlow);
+            ResetResolveHold();
+            SetEvidenceButtonsInteractable(ticket.HasEvidence);
         }
 
         /// <summary>
@@ -406,8 +773,16 @@ namespace MingBay.UI
         public void ShowEvidenceCandidateSelected(int evidenceIndex)
         {
             statusText.text =
-                $"状态：已选择资料{evidenceIndex + 1:00}，请点击“保留证据”确认";
-            saveEvidenceButton.interactable = true;
+                $"状态：已选择资料{evidenceIndex + 1:00}，可查看详情或收集此资料";
+            for (int index = 0; index < evidenceActionRows.Length; index++)
+            {
+                SetEvidenceActionRowVisible(index, index == evidenceIndex);
+            }
+
+            if (saveEvidenceButton != null)
+            {
+                saveEvidenceButton.interactable = true;
+            }
         }
 
         /// <summary>
@@ -417,7 +792,7 @@ namespace MingBay.UI
         {
             if (!string.IsNullOrWhiteSpace(actionText))
             {
-                aiReplyText.text = $"{aiReplyText.text}\n\n{actionText}";
+                AppendChatMessage("系统提示", actionText, false);
             }
 
             statusText.text = "教程提示：请使用“标记已解决”完成工单";
@@ -439,9 +814,11 @@ namespace MingBay.UI
             string actionSection = string.IsNullOrWhiteSpace(actionText)
                 ? string.Empty
                 : $"\n\n{actionText}";
-            aiReplyText.text =
-                $"{ticket.AiReply}{actionSection}\n\nA07：{evidencePrompt}";
-            statusText.text = "状态：请点击资料01～资料04提交证据";
+            AppendChatMessage(
+                "A07",
+                $"{actionSection.Trim()}\n{evidencePrompt}".Trim(),
+                false);
+            statusText.text = "状态：请点击资料01～资料04，并选择“收集此资料”提交证据";
             AddEvidenceClickHint(profileText);
             AddEvidenceClickHint(historyText);
             AddEvidenceClickHint(deviceLogText);
@@ -456,19 +833,25 @@ namespace MingBay.UI
         /// <summary>
         /// 将追问后获得的补充台词追加到居民消息框。
         /// </summary>
-        public void ShowResidentFollowUp(string followUpText, bool hasRemainingFollowUp)
+        public void ShowResidentFollowUp(
+            string speakerName,
+            string followUpText,
+            bool hasRemainingFollowUp)
         {
             if (string.IsNullOrWhiteSpace(followUpText))
             {
                 return;
             }
 
-            userMessageText.text = $"{userMessageText.text}\n\n{followUpText}";
+            string safeSpeakerName = string.IsNullOrWhiteSpace(speakerName)
+                ? "居民"
+                : speakerName;
+            AppendChatMessage(safeSpeakerName, followUpText, true);
             RefreshResidentMessageLayout();
             statusText.text = hasRemainingFollowUp
                 ? "状态：居民仍有补充说明，可继续点击“追问”"
                 : "状态：居民补充说明已全部显示";
-            primaryActionButton.interactable = hasRemainingFollowUp;
+            SetFollowUpButtonState(hasRemainingFollowUp);
         }
 
         /// <summary>
@@ -478,6 +861,11 @@ namespace MingBay.UI
         {
             resolveTutorialHintVisible = true;
             resultTitleText.text = "教程提示";
+            if (resultStatusText != null)
+            {
+                resultStatusText.text = "请确认后继续";
+            }
+
             resultDescriptionText.text =
                 "不是每次都能完美解决居民诉求。游戏居民可能态度不好，" +
                 "也可能要求太高、很难解决。你可以按下这个按钮轻松解决。";
@@ -488,21 +876,41 @@ namespace MingBay.UI
 
         private void HighlightMarkResolvedButton()
         {
-            ColorBlock colors = markResolvedButton.colors;
-            colors.normalColor = new Color(0.95f, 0.68f, 0.18f, 1f);
-            colors.highlightedColor = new Color(1f, 0.78f, 0.28f, 1f);
-            colors.selectedColor = colors.highlightedColor;
-            markResolvedButton.colors = colors;
+            ApplyMarkResolvedDefaultColors();
             markResolvedButton.interactable = true;
-            statusText.text = "教程提示：请点击高亮的“标记已解决”";
+            statusText.text = "教程提示：请长按“标记已解决”";
+        }
+
+        private void ApplyMarkResolvedDefaultColors()
+        {
+            if (markResolvedButton == null)
+            {
+                return;
+            }
+
+            ColorBlock colors = markResolvedButton.colors;
+            colors.normalColor = new Color(0.85f, 0.34f, 0.34f, 1f);
+            colors.highlightedColor = new Color(0.92f, 0.40f, 0.40f, 1f);
+            colors.pressedColor = new Color(0.68f, 0.22f, 0.22f, 1f);
+            colors.selectedColor = colors.highlightedColor;
+            colors.disabledColor = new Color(0.48f, 0.24f, 0.24f, 0.68f);
+            colors.colorMultiplier = 1f;
+            colors.fadeDuration = 0.1f;
+            markResolvedButton.colors = colors;
+            defaultMarkResolvedColors = colors;
+
+            Graphic targetGraphic = markResolvedButton.targetGraphic;
+            if (targetGraphic != null)
+            {
+                targetGraphic.color = markResolvedButton.interactable
+                    ? colors.normalColor
+                    : colors.disabledColor;
+            }
         }
 
         private void RestoreMarkResolvedHighlight()
         {
-            if (markResolvedButton != null)
-            {
-                markResolvedButton.colors = defaultMarkResolvedColors;
-            }
+            ApplyMarkResolvedDefaultColors();
         }
 
         /// <summary>
@@ -514,9 +922,89 @@ namespace MingBay.UI
         {
             UpdateMetricHeader(metrics);
             statusText.text =
-                $"已保留资料{evidenceIndex + 1:00}，现在可点击“转人工”";
+                $"已收集资料{evidenceIndex + 1:00}，现在可点击“转人工”";
+            ResetEvidenceActionRows();
             saveEvidenceButton.interactable = false;
             SetEvidenceButtonsInteractable(true);
+        }
+
+        /// <summary>
+        /// 转人工后打开笔记面板，仅展示玩家已经在资料库中收集过的资料。
+        /// </summary>
+        public void ShowEvidenceNotebook(
+            TicketData ticket,
+            IReadOnlyCollection<int> retainedEvidenceIndices)
+        {
+            selectedNotebookEvidenceIndex = -1;
+            SetNotebookSelectedEvidence(-1);
+            SetNotebookPanelVisible(true);
+
+            if (notebookReasonText != null)
+            {
+                notebookReasonText.text = $"{ticket.IssueType}：{ticket.Title}";
+            }
+
+            if (notebookUserText != null)
+            {
+                notebookUserText.text = $"用户：{ticket.UserName}";
+            }
+
+            if (notebookEmotionText != null)
+            {
+                notebookEmotionText.text = "用户情绪：愤怒";
+            }
+
+            if (notebookRegionText != null)
+            {
+                notebookRegionText.text = $"区域：{ticket.Region}";
+            }
+
+            if (notebookTicketIdText != null)
+            {
+                notebookTicketIdText.text = $"#{ticket.TicketId}";
+            }
+
+            for (int index = 0; index < NotebookEvidenceSlotCount; index++)
+            {
+                bool isRetained = ContainsEvidenceIndex(retainedEvidenceIndices, index);
+                if (notebookEvidenceButtons != null &&
+                    index < notebookEvidenceButtons.Length &&
+                    notebookEvidenceButtons[index] != null)
+                {
+                    notebookEvidenceButtons[index].gameObject.SetActive(isRetained);
+                    notebookEvidenceButtons[index].interactable = isRetained;
+                }
+
+                if (notebookEvidenceTexts != null &&
+                    index < notebookEvidenceTexts.Length &&
+                    notebookEvidenceTexts[index] != null)
+                {
+                    notebookEvidenceTexts[index].text = GetEvidenceSummary(ticket, index);
+                }
+            }
+
+            if (notebookSubmitButton != null)
+            {
+                notebookSubmitButton.interactable = false;
+            }
+
+            statusText.text = "状态：请选择一份已收集资料并提交证据";
+            primaryActionButton.interactable = false;
+            transferHumanButton.interactable = false;
+            saveEvidenceButton.interactable = false;
+            markResolvedButton.interactable = false;
+            SetEvidenceButtonsInteractable(false);
+            SetDataPanelVisible(false);
+        }
+
+        /// <summary>
+        /// 玩家关闭笔记面板后回到资料核验界面。
+        /// </summary>
+        public void HideEvidenceNotebook()
+        {
+            selectedNotebookEvidenceIndex = -1;
+            SetNotebookSelectedEvidence(-1);
+            SetNotebookPanelVisible(false);
         }
 
         /// <summary>
@@ -524,19 +1012,46 @@ namespace MingBay.UI
         /// </summary>
         public void ShowRetainedEvidenceRequired()
         {
-            statusText.text = "请先点击一份资料并选择“保留证据”，再转人工";
+            statusText.text = "请先点击一份资料并选择“收集此资料”，再转人工";
         }
 
         /// <summary>
         /// 转人工后在聊天区域等待玩家主动点击“出示证据”。
         /// </summary>
+        public void ShowTransferHumanIntro()
+        {
+            AppendChatMessage(
+                "\u660e\u6e7e\u901a AI",
+                "\u5df2\u8f6c\u4eba\u5de5\u90e8\u95e8\u7ee7\u7eed\u5904\u7406",
+                false);
+            AppendChatMessage(
+                "\u5ba2\u670d A-07",
+                "\u60a8\u597d\uff0c\u300a\u660e\u6e7e\u901a\u300bA07\u5ba2\u670d\u5728\u7ebf\u4e3a\u60a8\u670d\u52a1",
+                false);
+        }
+
+        public void ShowSubmittedEvidenceCustomerFeedback(string userReply)
+        {
+            string safeUserReply = string.IsNullOrWhiteSpace(userReply)
+                ? "\u7528\u6237\u5df2\u6536\u5230\u5904\u7406\u7ed3\u679c\u3002"
+                : userReply;
+            AppendChatMessage(
+                "\u5ba2\u6237\u53cd\u9988",
+                safeUserReply,
+                true);
+            statusText.text =
+                "\u72b6\u6001\uff1a\u5ba2\u6237\u5df2\u53cd\u9988\uff0c\u6b63\u5728\u751f\u6210\u7ed3\u7b97";
+        }
+
         public void ShowEvidencePresentationRequest(
             TicketData ticket,
             string actionText,
             string evidencePrompt)
         {
-            aiReplyText.text =
-                $"{ticket.AiReply}\n\n{actionText}\n\nA07：{evidencePrompt}";
+            AppendChatMessage(
+                "A07",
+                $"{actionText}\n{evidencePrompt}".Trim(),
+                false);
             statusText.text = "状态：人工客服正在等待证据";
             primaryActionButton.interactable = false;
             transferHumanButton.interactable = false;
@@ -558,11 +1073,9 @@ namespace MingBay.UI
             string safeUserReply = string.IsNullOrWhiteSpace(userReply)
                 ? "用户：我明白了，请按这个结果继续处理。"
                 : userReply;
-            aiReplyText.text =
-                $"{aiReplyText.text}\n\n玩家：出示资料{evidenceIndex + 1:00}\n\n" +
-                "A07：已收到您出示的证据，正在核验相关记录。";
-            userMessageText.text =
-                $"{userMessageText.text}\n\n{safeUserReply}";
+            AppendChatMessage("玩家", $"出示资料{evidenceIndex + 1:00}", false);
+            AppendChatMessage("A07", "已收到您出示的证据，正在核验相关记录。", false);
+            AppendChatMessage("居民回应", safeUserReply, true);
             RefreshResidentMessageLayout();
             statusText.text = "状态：用户已回应，请完成本次对话";
             SetButtonLabel(chatEvidenceActionButtonText, "完成对话");
@@ -575,7 +1088,7 @@ namespace MingBay.UI
         public void ShowTutorialEvidenceAccepted(string feedbackText, GameMetrics metrics)
         {
             UpdateMetricHeader(metrics);
-            aiReplyText.text = $"{aiReplyText.text}\n\n{feedbackText}";
+            AppendChatMessage("A07", feedbackText, false);
             statusText.text = "教程提示：证据核验正确，请点击“标记已解决”";
             primaryActionButton.interactable = false;
             transferHumanButton.interactable = false;
@@ -590,7 +1103,7 @@ namespace MingBay.UI
         public void ShowTutorialEvidenceRejected(string feedbackText, GameMetrics metrics)
         {
             UpdateMetricHeader(metrics);
-            aiReplyText.text = $"{aiReplyText.text}\n\n{feedbackText}";
+            AppendChatMessage("A07", feedbackText, false);
             statusText.text = "教程提示：证据不匹配，请重新点击资料01～资料04";
             primaryActionButton.interactable = false;
             transferHumanButton.interactable = false;
@@ -612,25 +1125,32 @@ namespace MingBay.UI
             statusText.text = "状态：处理完成";
             UpdateMetricHeader(metrics);
             resultTitleText.text = resultTitle;
+            if (resultStatusText != null)
+            {
+                resultStatusText.text = "工单已关闭";
+            }
+
             resultDescriptionText.text = resultDescription;
             resultMetricsText.text =
-                $"已解决：{metrics.ResolvedCount}\n" +
-                $"人工转接：{metrics.TransferCount}\n" +
-                $"用户满意度：{metrics.UserSatisfaction:+#;-#;0}\n" +
-                $"证据数量：{metrics.EvidenceCount}\n" +
-                $"A-07 风险：{metrics.A07Risk:+#;-#;0}\n" +
-                $"本次证据：{(evidenceSaved ? "已保存" : "未保存")}";
+                $"A07风险值{metrics.A07Risk:+#;-#;0}\n" +
+                $"已解决数量：{metrics.ResolvedCount}\n" +
+                $"本次证据记录：{(evidenceSaved ? "已" : "无")}";
             if (resultActionButtonText != null)
             {
-                resultActionButtonText.text = resultActionLabel;
+                resultActionButtonText.text = "点击任意空白位置关闭";
             }
 
             primaryActionButton.interactable = false;
             transferHumanButton.interactable = false;
             saveEvidenceButton.interactable = false;
             markResolvedButton.interactable = false;
+            ResetResolveHold();
             chatEvidenceActionButton.gameObject.SetActive(false);
             SetEvidenceButtonsInteractable(false);
+            ResetEvidenceActionRows();
+            SetDataPanelVisible(false);
+            SetNotebookPanelVisible(false);
+            RepositionResultCard();
             resultPanel.SetActive(true);
         }
 
@@ -654,6 +1174,34 @@ namespace MingBay.UI
             resolvedCountText.text = $"已解决  {metrics.ResolvedCount}";
         }
 
+        private void SetTicketIdText(string content)
+        {
+            if (ticketIdText != null)
+            {
+                ticketIdText.text = content;
+            }
+        }
+
+        private void RepositionResultCard()
+        {
+            if (resultPanel == null)
+            {
+                return;
+            }
+
+            Transform card = resultPanel.transform.Find("ResultCard");
+            if (card == null ||
+                !card.TryGetComponent(out RectTransform rect))
+            {
+                return;
+            }
+
+            rect.anchorMin = new Vector2(0.33f, 0.46f);
+            rect.anchorMax = new Vector2(0.67f, 0.88f);
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+        }
+
         private void CacheButtonLabels()
         {
             primaryActionButtonText =
@@ -667,6 +1215,10 @@ namespace MingBay.UI
             saveEvidenceButtonText =
                 saveEvidenceButton != null
                     ? saveEvidenceButton.GetComponentInChildren<TMP_Text>(true)
+                    : null;
+            dataLookupButtonText =
+                dataLookupButton != null
+                    ? dataLookupButton.GetComponentInChildren<TMP_Text>(true)
                     : null;
             chatEvidenceActionButtonText =
                 chatEvidenceActionButton != null
@@ -715,6 +1267,569 @@ namespace MingBay.UI
             userMessageText.ForceMeshUpdate(true, true);
         }
 
+        public void PlayTicketDialogue(
+            IReadOnlyList<TicketDialogueLine> lines,
+            bool clearExisting,
+            Action onComplete = null)
+        {
+            List<(string speaker, string message, bool fromUser)> runtimeLines = new();
+            if (lines != null)
+            {
+                foreach (TicketDialogueLine line in lines)
+                {
+                    if (string.IsNullOrWhiteSpace(line.Text))
+                    {
+                        continue;
+                    }
+
+                    string speaker = string.IsNullOrWhiteSpace(line.SpeakerLabel)
+                        ? line.SpeakerId
+                        : line.SpeakerLabel;
+                    runtimeLines.Add((speaker, line.Text, line.FromUser));
+                }
+            }
+
+            ShowDialogueSequence(clearExisting, onComplete, runtimeLines.ToArray());
+        }
+
+        private void ShowDialogueSequence(params (string speaker, string message, bool fromUser)[] lines)
+        {
+            ShowDialogueSequence(true, null, lines);
+        }
+
+        private void ShowDialogueSequence(
+            bool clearExisting,
+            Action onComplete,
+            params (string speaker, string message, bool fromUser)[] lines)
+        {
+            if (dialogueRoutine != null)
+            {
+                StopCoroutine(dialogueRoutine);
+            }
+
+            if (clearExisting)
+            {
+                ClearChatMessages();
+            }
+
+            ShowEmptyChatState(false);
+            if (lines == null || lines.Length == 0)
+            {
+                if (onComplete != null)
+                {
+                    dialogueRoutine = StartCoroutine(CompleteAfterPopupDelay(onComplete));
+                    return;
+                }
+
+                onComplete?.Invoke();
+                return;
+            }
+
+            dialogueRoutine = StartCoroutine(RevealDialogueRoutine(lines, onComplete));
+        }
+
+        private IEnumerator RevealDialogueRoutine(
+            (string speaker, string message, bool fromUser)[] lines,
+            Action onComplete)
+        {
+            for (int index = 0; index < lines.Length; index++)
+            {
+                AppendChatMessage(lines[index].speaker, lines[index].message, lines[index].fromUser);
+                if (index < lines.Length - 1)
+                {
+                    yield return new WaitForSeconds(dialogueRevealDelay);
+                }
+            }
+
+            if (onComplete != null && popupDelayAfterDialogueSeconds > 0f)
+            {
+                yield return new WaitForSeconds(popupDelayAfterDialogueSeconds);
+            }
+
+            dialogueRoutine = null;
+            onComplete?.Invoke();
+        }
+
+        private IEnumerator CompleteAfterPopupDelay(Action onComplete)
+        {
+            if (popupDelayAfterDialogueSeconds > 0f)
+            {
+                yield return new WaitForSeconds(popupDelayAfterDialogueSeconds);
+            }
+
+            dialogueRoutine = null;
+            onComplete?.Invoke();
+        }
+
+        private void ClearChatMessages()
+        {
+            if (chatContent == null || chatBubbleTemplate == null)
+            {
+                if (userMessageText != null)
+                {
+                    userMessageText.text = string.Empty;
+                }
+
+                if (aiReplyText != null)
+                {
+                    aiReplyText.text = string.Empty;
+                }
+
+                return;
+            }
+
+            for (int index = chatContent.childCount - 1; index >= 0; index--)
+            {
+                Transform child = chatContent.GetChild(index);
+                if (child.gameObject == chatBubbleTemplate)
+                {
+                    continue;
+                }
+
+                Destroy(child.gameObject);
+            }
+        }
+
+        private void AppendChatMessage(string speaker, string message, bool fromUser)
+        {
+            ShowEmptyChatState(false);
+            if (chatContent == null || chatBubbleTemplate == null)
+            {
+                TMP_Text target = fromUser ? userMessageText : aiReplyText;
+                if (target != null)
+                {
+                    target.text = string.IsNullOrWhiteSpace(target.text)
+                        ? message
+                        : $"{target.text}\n\n{message}";
+                }
+
+                return;
+            }
+
+            GameObject bubble = Instantiate(chatBubbleTemplate, chatContent);
+            bubble.name = fromUser ? "Bubble_User" : "Bubble_System";
+            bubble.SetActive(true);
+
+            RectTransform bubbleRect = bubble.GetComponent<RectTransform>();
+            LayoutElement layoutElement = bubble.GetComponent<LayoutElement>();
+            float preferredHeight = CalculateChatBubbleHeight(message);
+            if (layoutElement != null)
+            {
+                layoutElement.preferredHeight = preferredHeight;
+            }
+
+            if (bubbleRect != null)
+            {
+                bubbleRect.sizeDelta = new Vector2(bubbleRect.sizeDelta.x, preferredHeight);
+            }
+
+            RectTransform bodyRect = FindChildRect(bubble.transform, "BubbleBody");
+            Image bubbleImage = bodyRect != null
+                ? bodyRect.GetComponent<Image>()
+                : bubble.GetComponent<Image>();
+            if (bubbleImage != null)
+            {
+                bubbleImage.color = fromUser
+                    ? new Color(0.96f, 0.96f, 0.96f, 1f)
+                    : new Color(0.32f, 0.52f, 0.26f, 1f);
+            }
+
+            RectTransform leftAvatar = FindChildRect(bubble.transform, "AvatarLeft");
+            RectTransform rightAvatar = FindChildRect(bubble.transform, "AvatarRight");
+            TMP_Text speakerText = FindChildText(bubble.transform, "Txt_Speaker");
+            TMP_Text text = FindChildText(bubble.transform, "Txt_Bubble") ??
+                bubble.GetComponentInChildren<TMP_Text>(true);
+
+            ConfigureChatBubbleLayout(
+                fromUser,
+                preferredHeight,
+                bodyRect,
+                leftAvatar,
+                rightAvatar,
+                speakerText);
+
+            if (speakerText != null)
+            {
+                speakerText.text = speaker;
+                speakerText.color = new Color(0.1f, 0.1f, 0.1f, 1f);
+            }
+
+            if (text != null)
+            {
+                text.text = speakerText != null ? message : $"<b>{speaker}</b>\n{message}";
+                text.enableAutoSizing = false;
+                text.fontSize = 20f;
+                text.overflowMode = TextOverflowModes.Overflow;
+                text.color = fromUser
+                    ? new Color(0.08f, 0.08f, 0.08f, 1f)
+                    : new Color(0.02f, 0.02f, 0.02f, 1f);
+            }
+
+            StartCoroutine(ScrollChatToBottomNextFrame());
+        }
+
+        private static float CalculateChatBubbleHeight(string message)
+        {
+            int length = string.IsNullOrEmpty(message) ? 0 : message.Length;
+            int lineBreaks = string.IsNullOrEmpty(message)
+                ? 0
+                : message.Split('\n').Length - 1;
+            return Mathf.Clamp(108f + Mathf.Ceil(length / 34f) * 26f + lineBreaks * 22f, 132f, 300f);
+        }
+
+        private static void ConfigureChatBubbleLayout(
+            bool fromUser,
+            float rowHeight,
+            RectTransform bodyRect,
+            RectTransform leftAvatar,
+            RectTransform rightAvatar,
+            TMP_Text speakerText)
+        {
+            const float avatarSize = 58f;
+            const float bodyWidth = 650f;
+            float bodyHeight = Mathf.Max(72f, rowHeight - 58f);
+            Vector2 leftBodyPosition = new(96f, -46f);
+            Vector2 rightBodyPosition = new(-96f, -46f);
+
+            if (leftAvatar != null)
+            {
+                leftAvatar.gameObject.SetActive(fromUser);
+                leftAvatar.anchorMin = new Vector2(0f, 1f);
+                leftAvatar.anchorMax = new Vector2(0f, 1f);
+                leftAvatar.pivot = new Vector2(0f, 1f);
+                leftAvatar.sizeDelta = new Vector2(avatarSize, avatarSize);
+                leftAvatar.anchoredPosition = new Vector2(16f, -34f);
+            }
+
+            if (rightAvatar != null)
+            {
+                rightAvatar.gameObject.SetActive(!fromUser);
+                rightAvatar.anchorMin = new Vector2(1f, 1f);
+                rightAvatar.anchorMax = new Vector2(1f, 1f);
+                rightAvatar.pivot = new Vector2(1f, 1f);
+                rightAvatar.sizeDelta = new Vector2(avatarSize, avatarSize);
+                rightAvatar.anchoredPosition = new Vector2(-16f, -34f);
+            }
+
+            if (bodyRect != null)
+            {
+                bodyRect.anchorMin = fromUser ? new Vector2(0f, 1f) : new Vector2(1f, 1f);
+                bodyRect.anchorMax = bodyRect.anchorMin;
+                bodyRect.pivot = fromUser ? new Vector2(0f, 1f) : new Vector2(1f, 1f);
+                bodyRect.sizeDelta = new Vector2(bodyWidth, bodyHeight);
+                bodyRect.anchoredPosition = fromUser ? leftBodyPosition : rightBodyPosition;
+            }
+
+            if (speakerText != null)
+            {
+                RectTransform speakerRect = speakerText.GetComponent<RectTransform>();
+                speakerRect.anchorMin = fromUser ? new Vector2(0f, 1f) : new Vector2(1f, 1f);
+                speakerRect.anchorMax = speakerRect.anchorMin;
+                speakerRect.pivot = fromUser ? new Vector2(0f, 1f) : new Vector2(1f, 1f);
+                speakerRect.sizeDelta = new Vector2(280f, 28f);
+                speakerRect.anchoredPosition = fromUser
+                    ? new Vector2(96f, -8f)
+                    : new Vector2(-96f, -8f);
+                speakerText.alignment = fromUser
+                    ? TextAlignmentOptions.MidlineLeft
+                    : TextAlignmentOptions.MidlineRight;
+            }
+        }
+
+        private static RectTransform FindChildRect(Transform parent, string childName)
+        {
+            Transform child = FindChild(parent, childName);
+            return child != null ? child.GetComponent<RectTransform>() : null;
+        }
+
+        private static TMP_Text FindChildText(Transform parent, string childName)
+        {
+            Transform child = FindChild(parent, childName);
+            return child != null ? child.GetComponent<TMP_Text>() : null;
+        }
+
+        private static Transform FindChild(Transform parent, string childName)
+        {
+            if (parent == null)
+            {
+                return null;
+            }
+
+            foreach (Transform child in parent.GetComponentsInChildren<Transform>(true))
+            {
+                if (child.name == childName)
+                {
+                    return child;
+                }
+            }
+
+            return null;
+        }
+
+        private void ShowEmptyChatState(bool isVisible)
+        {
+            if (chatEmptyState != null)
+            {
+                chatEmptyState.SetActive(isVisible);
+            }
+        }
+
+        private IEnumerator ScrollChatToBottomNextFrame()
+        {
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            if (chatContent != null)
+            {
+                LayoutRebuilder.ForceRebuildLayoutImmediate(chatContent);
+            }
+
+            if (chatScrollRect != null)
+            {
+                chatScrollRect.verticalNormalizedPosition = 0f;
+            }
+        }
+
+        private void SetFollowUpButtonState(bool hasFollowUp)
+        {
+            if (primaryActionButton == null)
+            {
+                return;
+            }
+
+            primaryActionButton.interactable = hasFollowUp;
+            ColorBlock colors = primaryActionButton.colors;
+            if (hasFollowUp)
+            {
+                colors.normalColor = new Color(0.2f, 0.68f, 0.42f, 1f);
+                colors.highlightedColor = new Color(0.26f, 0.78f, 0.5f, 1f);
+                colors.pressedColor = new Color(0.16f, 0.48f, 0.31f, 1f);
+            }
+            else
+            {
+                colors.normalColor = new Color(0.45f, 0.45f, 0.45f, 1f);
+                colors.highlightedColor = colors.normalColor;
+                colors.pressedColor = colors.normalColor;
+            }
+
+            colors.selectedColor = colors.highlightedColor;
+            colors.disabledColor = new Color(0.45f, 0.45f, 0.45f, 0.72f);
+            primaryActionButton.colors = colors;
+        }
+
+        private void ConfigureLongPressButton(Button button)
+        {
+            EventTrigger trigger = button.GetComponent<EventTrigger>();
+            if (trigger == null)
+            {
+                trigger = button.gameObject.AddComponent<EventTrigger>();
+            }
+
+            trigger.triggers ??= new List<EventTrigger.Entry>();
+            trigger.triggers.Clear();
+
+            EventTrigger.Entry down = new() { eventID = EventTriggerType.PointerDown };
+            down.callback.AddListener(_ => BeginResolveHold());
+            trigger.triggers.Add(down);
+
+            EventTrigger.Entry up = new() { eventID = EventTriggerType.PointerUp };
+            up.callback.AddListener(_ => CancelResolveHold());
+            trigger.triggers.Add(up);
+
+            EventTrigger.Entry exit = new() { eventID = EventTriggerType.PointerExit };
+            exit.callback.AddListener(_ => CancelResolveHold());
+            trigger.triggers.Add(exit);
+        }
+
+        private void BeginResolveHold()
+        {
+            if (markResolvedButton == null || !markResolvedButton.interactable)
+            {
+                return;
+            }
+
+            isHoldingMarkResolved = true;
+            markResolvedHoldTriggered = false;
+            markResolvedHoldTimer = 0f;
+            SetResolveHoldFill(0f);
+        }
+
+        private void CancelResolveHold()
+        {
+            if (markResolvedHoldTriggered)
+            {
+                return;
+            }
+
+            isHoldingMarkResolved = false;
+            markResolvedHoldTimer = 0f;
+            SetResolveHoldFill(0f);
+        }
+
+        private void ResetResolveHold()
+        {
+            isHoldingMarkResolved = false;
+            markResolvedHoldTriggered = false;
+            markResolvedHoldTimer = 0f;
+            SetResolveHoldFill(0f);
+        }
+
+        private void SetResolveHoldFill(float fillAmount)
+        {
+            if (markResolvedHoldFill != null)
+            {
+                markResolvedHoldFill.fillAmount = fillAmount;
+            }
+        }
+
+        private void AddNotebookEvidenceListeners()
+        {
+            if (notebookEvidenceButtons == null)
+            {
+                return;
+            }
+
+            if (notebookEvidenceButtons.Length > 0 && notebookEvidenceButtons[0] != null)
+            {
+                notebookEvidenceButtons[0].onClick.AddListener(NotifyNotebookEvidence01Selected);
+            }
+
+            if (notebookEvidenceButtons.Length > 1 && notebookEvidenceButtons[1] != null)
+            {
+                notebookEvidenceButtons[1].onClick.AddListener(NotifyNotebookEvidence02Selected);
+            }
+
+            if (notebookEvidenceButtons.Length > 2 && notebookEvidenceButtons[2] != null)
+            {
+                notebookEvidenceButtons[2].onClick.AddListener(NotifyNotebookEvidence03Selected);
+            }
+
+            if (notebookEvidenceButtons.Length > 3 && notebookEvidenceButtons[3] != null)
+            {
+                notebookEvidenceButtons[3].onClick.AddListener(NotifyNotebookEvidence04Selected);
+            }
+        }
+
+        private void RemoveNotebookEvidenceListeners()
+        {
+            if (notebookEvidenceButtons == null)
+            {
+                return;
+            }
+
+            if (notebookEvidenceButtons.Length > 0 && notebookEvidenceButtons[0] != null)
+            {
+                notebookEvidenceButtons[0].onClick.RemoveListener(NotifyNotebookEvidence01Selected);
+            }
+
+            if (notebookEvidenceButtons.Length > 1 && notebookEvidenceButtons[1] != null)
+            {
+                notebookEvidenceButtons[1].onClick.RemoveListener(NotifyNotebookEvidence02Selected);
+            }
+
+            if (notebookEvidenceButtons.Length > 2 && notebookEvidenceButtons[2] != null)
+            {
+                notebookEvidenceButtons[2].onClick.RemoveListener(NotifyNotebookEvidence03Selected);
+            }
+
+            if (notebookEvidenceButtons.Length > 3 && notebookEvidenceButtons[3] != null)
+            {
+                notebookEvidenceButtons[3].onClick.RemoveListener(NotifyNotebookEvidence04Selected);
+            }
+        }
+
+        private void SelectNotebookEvidence(int evidenceIndex)
+        {
+            if (notebookPanel == null || !notebookPanel.activeSelf)
+            {
+                return;
+            }
+
+            if (notebookEvidenceButtons == null ||
+                evidenceIndex < 0 ||
+                evidenceIndex >= notebookEvidenceButtons.Length ||
+                notebookEvidenceButtons[evidenceIndex] == null ||
+                !notebookEvidenceButtons[evidenceIndex].gameObject.activeSelf)
+            {
+                return;
+            }
+
+            selectedNotebookEvidenceIndex = evidenceIndex;
+            SetNotebookSelectedEvidence(evidenceIndex);
+            if (notebookSubmitButton != null)
+            {
+                notebookSubmitButton.interactable = true;
+            }
+
+            EvidenceSelected?.Invoke(evidenceIndex);
+        }
+
+        private void SetNotebookSelectedEvidence(int evidenceIndex)
+        {
+            if (notebookEvidenceOutlines == null)
+            {
+                return;
+            }
+
+            for (int index = 0; index < notebookEvidenceOutlines.Length; index++)
+            {
+                if (notebookEvidenceOutlines[index] != null)
+                {
+                    notebookEvidenceOutlines[index].enabled = index == evidenceIndex;
+                }
+            }
+        }
+
+        private void SetNotebookPanelVisible(bool isVisible)
+        {
+            if (notebookPanel != null)
+            {
+                notebookPanel.SetActive(isVisible);
+            }
+        }
+
+        private static bool ContainsEvidenceIndex(
+            IReadOnlyCollection<int> evidenceIndices,
+            int evidenceIndex)
+        {
+            if (evidenceIndices == null)
+            {
+                return false;
+            }
+
+            foreach (int retainedIndex in evidenceIndices)
+            {
+                if (retainedIndex == evidenceIndex)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static string GetEvidenceSummary(TicketData ticket, int evidenceIndex)
+        {
+            string body = evidenceIndex switch
+            {
+                0 => ticket.ProfileText,
+                1 => ticket.HistoryText,
+                2 => ticket.DeviceLogText,
+                3 => ticket.RegionStatusText,
+                _ => string.Empty
+            };
+
+            string normalized = string.IsNullOrWhiteSpace(body)
+                ? "暂无资料"
+                : body.Replace("\r", string.Empty).Trim();
+            string[] lines = normalized.Split('\n');
+            string firstLine = lines.Length > 0 ? lines[0].Trim() : normalized;
+            string secondLine = lines.Length > 1 ? lines[1].Trim() : string.Empty;
+            string summary = string.IsNullOrWhiteSpace(secondLine)
+                ? firstLine
+                : $"{firstLine}\n{secondLine}";
+            return $"资料{evidenceIndex + 1:00}:\n{summary}";
+        }
+
         private static void SetButtonLabel(TMP_Text label, string content)
         {
             if (label != null)
@@ -725,20 +1840,10 @@ namespace MingBay.UI
 
         private static void AddEvidenceClickHint(TMP_Text evidenceText)
         {
-            const string ClickHint = "【点击此资料提交证据】";
-            if (evidenceText != null && !evidenceText.text.Contains(ClickHint))
-            {
-                evidenceText.text = $"{evidenceText.text}\n\n{ClickHint}";
-            }
         }
 
         private static void AddEvidenceRetentionHint(TMP_Text evidenceText)
         {
-            const string RetentionHint = "【点击此资料作为待保留证据】";
-            if (evidenceText != null && !evidenceText.text.Contains(RetentionHint))
-            {
-                evidenceText.text = $"{evidenceText.text}\n\n{RetentionHint}";
-            }
         }
 
         private void EnsureEvidenceButtons()
@@ -759,9 +1864,8 @@ namespace MingBay.UI
                     continue;
                 }
 
-                evidenceText.enableAutoSizing = true;
-                evidenceText.fontSizeMin = 8f;
-                evidenceText.fontSizeMax = 14f;
+                evidenceText.enableAutoSizing = false;
+                evidenceText.fontSize = 18f;
 
                 GameObject cardObject = evidenceText.transform.parent.gameObject;
                 Button button = cardObject.GetComponent<Button>();
@@ -773,26 +1877,39 @@ namespace MingBay.UI
                 button.targetGraphic = cardObject.GetComponent<Image>();
                 button.interactable = false;
                 evidenceButtons[index] = button;
+                evidenceDetailButtons[index] =
+                    FindChildButton(cardObject.transform, "Btn_ViewDetail");
+                evidenceCollectButtons[index] =
+                    FindChildButton(cardObject.transform, "Btn_CollectEvidence");
+                Transform actionRow = cardObject.transform.Find("ActionRow");
+                evidenceActionRows[index] = actionRow != null
+                    ? actionRow.gameObject
+                    : null;
+                evidenceCardLayouts[index] = cardObject.GetComponent<LayoutElement>();
             }
 
-            if (evidenceButtons[0] != null)
+            for (int index = 0; index < evidenceButtons.Length; index++)
             {
-                evidenceButtons[0].onClick.AddListener(NotifyEvidence01Selected);
-            }
+                int evidenceIndex = index;
+                if (evidenceButtons[index] != null)
+                {
+                    evidenceButtons[index].onClick.AddListener(
+                        () => NotifyEvidenceSelected(evidenceIndex));
+                }
 
-            if (evidenceButtons[1] != null)
-            {
-                evidenceButtons[1].onClick.AddListener(NotifyEvidence02Selected);
-            }
+                if (evidenceDetailButtons[index] != null)
+                {
+                    evidenceDetailButtons[index].onClick.AddListener(
+                        () => ShowEvidenceDetail(evidenceIndex));
+                }
 
-            if (evidenceButtons[2] != null)
-            {
-                evidenceButtons[2].onClick.AddListener(NotifyEvidence03Selected);
-            }
+                if (evidenceCollectButtons[index] != null)
+                {
+                    evidenceCollectButtons[index].onClick.AddListener(
+                        NotifySaveEvidenceRequested);
+                }
 
-            if (evidenceButtons[3] != null)
-            {
-                evidenceButtons[3].onClick.AddListener(NotifyEvidence04Selected);
+                SetEvidenceActionRowVisible(index, false);
             }
         }
 
@@ -807,8 +1924,149 @@ namespace MingBay.UI
             }
         }
 
+        private void ResetEvidenceActionRows()
+        {
+            for (int index = 0; index < evidenceActionRows.Length; index++)
+            {
+                SetEvidenceActionRowVisible(index, false);
+            }
+        }
+
+        private void SetEvidenceActionRowVisible(int evidenceIndex, bool isVisible)
+        {
+            if (evidenceIndex < 0 || evidenceIndex >= evidenceActionRows.Length)
+            {
+                return;
+            }
+
+            if (evidenceActionRows[evidenceIndex] != null)
+            {
+                evidenceActionRows[evidenceIndex].SetActive(isVisible);
+            }
+
+            if (evidenceCardLayouts[evidenceIndex] != null)
+            {
+                evidenceCardLayouts[evidenceIndex].preferredHeight = isVisible ? 300f : 220f;
+            }
+
+            ConfigureEvidenceCardTextLayout(GetEvidenceText(evidenceIndex), isVisible);
+        }
+
+        private void ShowEvidenceDetail(int evidenceIndex)
+        {
+            statusText.text = $"状态：正在查看资料{evidenceIndex + 1:00}详情";
+            SetEvidenceActionRowVisible(evidenceIndex, true);
+            ShowEvidenceDetailOverlay(evidenceIndex);
+        }
+
+        private void ShowEvidenceDetailOverlay(int evidenceIndex)
+        {
+            EnsureEvidenceDetailReferences();
+            if (evidenceDetailOverlay == null)
+            {
+                return;
+            }
+
+            if (evidenceDetailTitleText != null)
+            {
+                evidenceDetailTitleText.text = $"\u8d44\u6599{evidenceIndex + 1:00}";
+            }
+
+            if (evidenceDetailBodyText != null)
+            {
+                evidenceDetailBodyText.text = GetEvidenceDetailBody(evidenceIndex);
+                evidenceDetailBodyText.enableAutoSizing = false;
+                evidenceDetailBodyText.fontSize = 22f;
+                evidenceDetailBodyText.overflowMode = TextOverflowModes.Overflow;
+            }
+
+            evidenceDetailOverlay.SetActive(true);
+            evidenceDetailOverlay.transform.SetAsLastSibling();
+            StartCoroutine(RebuildEvidenceDetailNextFrame());
+        }
+
+        private IEnumerator RebuildEvidenceDetailNextFrame()
+        {
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            if (evidenceDetailBodyText != null &&
+                evidenceDetailBodyText.transform.parent is RectTransform content)
+            {
+                float preferredHeight = Mathf.Max(
+                    420f,
+                    evidenceDetailBodyText.preferredHeight + 18f);
+                content.SetSizeWithCurrentAnchors(
+                    RectTransform.Axis.Vertical,
+                    preferredHeight);
+                LayoutRebuilder.ForceRebuildLayoutImmediate(content);
+            }
+        }
+
+        private string GetEvidenceDetailBody(int evidenceIndex)
+        {
+            TMP_Text bodyText = evidenceIndex switch
+            {
+                0 => profileText,
+                1 => historyText,
+                2 => deviceLogText,
+                3 => regionStatusText,
+                _ => null
+            };
+
+            return bodyText != null && !string.IsNullOrWhiteSpace(bodyText.text)
+                ? bodyText.text.Trim()
+                : "\u6682\u65e0\u8d44\u6599";
+        }
+
+        private void CloseEvidenceDetail()
+        {
+            SetEvidenceDetailVisible(false);
+        }
+
+        private void SetEvidenceDetailVisible(bool isVisible)
+        {
+            if (evidenceDetailOverlay != null)
+            {
+                evidenceDetailOverlay.SetActive(isVisible);
+            }
+        }
+
+        private void OpenWorkApp()
+        {
+            SetTicketAppWindowVisible(true);
+            SetTicketContentVisible(true);
+            if (!hasActiveTicketContent)
+            {
+                SetDataPanelVisible(false);
+            }
+        }
+
+        private void CloseWorkApp()
+        {
+            SetTicketAppWindowVisible(false);
+        }
+
+        private void OpenClueNotebook()
+        {
+            SetTicketAppWindowVisible(false);
+            SetDataPanelVisible(false);
+        }
+
+        private void SetTicketAppWindowVisible(bool isVisible)
+        {
+            if (ticketAppWindow != null)
+            {
+                ticketAppWindow.SetActive(isVisible);
+            }
+        }
+
         private void SetTicketContentVisible(bool isVisible)
         {
+            if (ticketContentObjects == null)
+            {
+                return;
+            }
+
             foreach (GameObject contentObject in ticketContentObjects)
             {
                 if (contentObject != null)
@@ -818,17 +2076,100 @@ namespace MingBay.UI
             }
         }
 
+        private void SetDataPanelVisible(bool isVisible)
+        {
+            if (dataPanel != null)
+            {
+                dataPanel.SetActive(isVisible);
+            }
+
+            if (!isVisible)
+            {
+                SetEvidenceDetailVisible(false);
+            }
+
+            if (isVisible && dataScrollRect != null)
+            {
+                StartCoroutine(ScrollDataPanelToTopNextFrame());
+            }
+        }
+
+        private IEnumerator ScrollDataPanelToTopNextFrame()
+        {
+            yield return null;
+            Canvas.ForceUpdateCanvases();
+            if (dataScrollRect != null)
+            {
+                dataScrollRect.verticalNormalizedPosition = 1f;
+            }
+        }
+
         /// <summary>
         /// 兼容尚未重新生成的旧 GameScene。
         /// 通过对象名称复用旧的队列占位项，不要求策划手动重新绑定 Inspector。
         /// </summary>
         private void EnsureRuntimeReferences()
         {
+            if (ticketAppWindow == null)
+            {
+                ticketAppWindow = FindSceneObject("TicketAppWindow");
+            }
+
+            if (workAppButton == null)
+            {
+                workAppButton = FindButton("DesktopButton_WorkApp");
+            }
+
+            if (ticketAppCloseButton == null)
+            {
+                ticketAppCloseButton = FindButton("Btn_TicketAppClose");
+            }
+
+            if (clueNotebookButton == null)
+            {
+                clueNotebookButton = FindButton("DesktopButton_ClueNotebook");
+            }
+
+            if (taskbarWorkQueueButton == null)
+            {
+                taskbarWorkQueueButton = FindButton("Taskbar_WorkQueue");
+            }
+
+            if (taskbarDatabaseButton == null)
+            {
+                taskbarDatabaseButton = FindButton("Taskbar_Database");
+            }
+
+            if (dataPanel == null)
+            {
+                dataPanel = FindSceneObject("EvidenceLibraryPanel");
+            }
+
+            if (dataScrollRect == null && dataPanel != null)
+            {
+                dataScrollRect = dataPanel.GetComponent<ScrollRect>();
+            }
+
+            EnsureEvidenceDetailReferences();
+
+            if (chatEmptyState == null)
+            {
+                chatEmptyState = FindSceneObject("ChatEmptyState");
+            }
+
+            if (ticketIdText == null)
+            {
+                GameObject ticketIdObject = FindSceneObject("Txt_TicketId");
+                ticketIdText = ticketIdObject != null
+                    ? ticketIdObject.GetComponent<TMP_Text>()
+                    : null;
+            }
+
             if (ticketQueueContent == null)
             {
-                GameObject queuePanel = FindSceneObject("TicketQueuePanel");
-                ticketQueueContent = queuePanel != null
-                    ? queuePanel.GetComponent<RectTransform>()
+                GameObject queueContentObject = FindSceneObject("TicketQueueContent");
+                ticketQueueContent = queueContentObject != null
+                    ? queueContentObject.GetComponent<RectTransform>()
                     : null;
             }
 
@@ -865,6 +2206,9 @@ namespace MingBay.UI
             {
                 ticketContentObjects = new[]
                 {
+                    FindSceneObject("TicketInfoPanel"),
+                    FindSceneObject("ChatPanel"),
+                    FindSceneObject("ProcessModule"),
                     FindSceneObject("TicketPanel"),
                     FindSceneObject("DataLockedPlaceholder"),
                     FindSceneObject("DataPanel"),
@@ -874,6 +2218,37 @@ namespace MingBay.UI
 
             EnsureRuntimeSaveEvidenceButton();
             EnsureRuntimeChatEvidenceButton();
+        }
+
+        private void EnsureEvidenceDetailReferences()
+        {
+            if (evidenceDetailOverlay == null)
+            {
+                evidenceDetailOverlay = FindSceneObject("EvidenceDetailOverlay");
+            }
+
+            if (evidenceDetailOverlay == null)
+            {
+                return;
+            }
+
+            if (evidenceDetailTitleText == null)
+            {
+                evidenceDetailTitleText =
+                    FindChildText(evidenceDetailOverlay.transform, "Txt_EvidenceDetailTitle");
+            }
+
+            if (evidenceDetailBodyText == null)
+            {
+                evidenceDetailBodyText =
+                    FindChildText(evidenceDetailOverlay.transform, "Txt_EvidenceDetailBody");
+            }
+
+            if (evidenceDetailCloseButton == null)
+            {
+                evidenceDetailCloseButton =
+                    FindChildButton(evidenceDetailOverlay.transform, "Btn_CloseEvidenceDetail");
+            }
         }
 
         private void ConfigureEvidenceCardLayout(bool tutorialEvidenceLayout)
@@ -887,17 +2262,10 @@ namespace MingBay.UI
             historyCard.SetActive(true);
             deviceCard.SetActive(!tutorialEvidenceLayout);
             regionCard.SetActive(!tutorialEvidenceLayout);
-            SetCardTitle(profileText, tutorialEvidenceLayout ? "具体证据 01" : "资料01 用户资料");
-            SetCardTitle(historyText, tutorialEvidenceLayout ? "具体证据 02" : "资料02 历史工单");
-
-            SetCardAnchors(
-                profileCard,
-                tutorialEvidenceLayout ? new Vector2(0.04f, 0.52f) : new Vector2(0.04f, 0.69f),
-                tutorialEvidenceLayout ? new Vector2(0.96f, 0.86f) : new Vector2(0.96f, 0.88f));
-            SetCardAnchors(
-                historyCard,
-                tutorialEvidenceLayout ? new Vector2(0.04f, 0.12f) : new Vector2(0.04f, 0.47f),
-                tutorialEvidenceLayout ? new Vector2(0.96f, 0.46f) : new Vector2(0.96f, 0.66f));
+            SetCardTitle(profileText, "资料01");
+            SetCardTitle(historyText, "资料02");
+            SetCardTitle(deviceLogText, "资料03");
+            SetCardTitle(regionStatusText, "资料04");
         }
 
         private static void SetCardAnchors(
@@ -914,15 +2282,89 @@ namespace MingBay.UI
 
         private static void SetCardTitle(TMP_Text bodyText, string title)
         {
-            TMP_Text[] texts = bodyText.transform.parent.GetComponentsInChildren<TMP_Text>(true);
-            foreach (TMP_Text text in texts)
+            if (bodyText == null || bodyText.transform.parent == null)
             {
-                if (text != bodyText)
+                return;
+            }
+
+            Transform card = bodyText.transform.parent;
+            TMP_Text titleText = null;
+            Transform titleTransform = card.Find("Txt_Title");
+            if (titleTransform != null)
+            {
+                titleText = titleTransform.GetComponent<TMP_Text>();
+            }
+
+            if (titleText == null)
+            {
+                TMP_Text[] texts = card.GetComponentsInChildren<TMP_Text>(true);
+                foreach (TMP_Text text in texts)
                 {
-                    text.text = title;
-                    return;
+                    if (text != bodyText)
+                    {
+                        titleText = text;
+                        break;
+                    }
                 }
             }
+
+            if (titleText == null)
+            {
+                return;
+            }
+
+            titleText.gameObject.SetActive(true);
+            titleText.text = title;
+            titleText.enableAutoSizing = false;
+            titleText.fontSize = 24f;
+            titleText.color = new Color(0.35f, 0.35f, 0.35f, 1f);
+            titleText.alignment = TextAlignmentOptions.MidlineLeft;
+            titleText.overflowMode = TextOverflowModes.Truncate;
+
+            RectTransform titleRect = titleText.GetComponent<RectTransform>();
+            titleRect.anchorMin = new Vector2(0f, 1f);
+            titleRect.anchorMax = Vector2.one;
+            titleRect.offsetMin = new Vector2(18f, -52f);
+            titleRect.offsetMax = new Vector2(-14f, -12f);
+
+            ConfigureEvidenceCardTextLayout(bodyText, false);
+        }
+
+        private static void ConfigureEvidenceCardTextLayout(TMP_Text bodyText, bool actionVisible)
+        {
+            if (bodyText == null || bodyText.transform.parent == null)
+            {
+                return;
+            }
+
+            Transform card = bodyText.transform.parent;
+            Transform titleTransform = card.Find("Txt_Title");
+            if (titleTransform != null &&
+                titleTransform.TryGetComponent(out RectTransform titleRect))
+            {
+                titleRect.anchorMin = new Vector2(0f, 1f);
+                titleRect.anchorMax = Vector2.one;
+                titleRect.offsetMin = new Vector2(18f, -52f);
+                titleRect.offsetMax = new Vector2(-14f, -12f);
+            }
+
+            RectTransform bodyRect = bodyText.GetComponent<RectTransform>();
+            bodyRect.anchorMin = Vector2.zero;
+            bodyRect.anchorMax = Vector2.one;
+            bodyRect.offsetMin = new Vector2(18f, actionVisible ? 90f : 14f);
+            bodyRect.offsetMax = new Vector2(-18f, -66f);
+        }
+
+        private TMP_Text GetEvidenceText(int evidenceIndex)
+        {
+            return evidenceIndex switch
+            {
+                0 => profileText,
+                1 => historyText,
+                2 => deviceLogText,
+                3 => regionStatusText,
+                _ => null
+            };
         }
 
         /// <summary>
@@ -959,6 +2401,20 @@ namespace MingBay.UI
         /// </summary>
         private void EnsureRuntimeSaveEvidenceButton()
         {
+            if (dataLookupButton != null)
+            {
+                SetButtonAnchor(primaryActionButton, 0.13f, 154f);
+                SetButtonAnchor(dataLookupButton, 0.34f, 210f);
+                SetButtonAnchor(transferHumanButton, 0.56f, 180f);
+                SetButtonAnchor(markResolvedButton, 0.82f, 290f);
+                if (saveEvidenceButton != null)
+                {
+                    saveEvidenceButton.gameObject.SetActive(false);
+                }
+
+                return;
+            }
+
             if (saveEvidenceButton == null && transferHumanButton != null)
             {
                 transferHumanButton.gameObject.name = "Btn_TransferHuman";
@@ -979,13 +2435,13 @@ namespace MingBay.UI
                 return;
             }
 
-            SetButtonAnchor(primaryActionButton, 0.13f);
-            SetButtonAnchor(transferHumanButton, 0.38f);
-            SetButtonAnchor(saveEvidenceButton, 0.63f);
-            SetButtonAnchor(markResolvedButton, 0.87f);
+            SetButtonAnchor(primaryActionButton, 0.13f, 250f);
+            SetButtonAnchor(transferHumanButton, 0.38f, 250f);
+            SetButtonAnchor(saveEvidenceButton, 0.63f, 250f);
+            SetButtonAnchor(markResolvedButton, 0.87f, 250f);
         }
 
-        private static void SetButtonAnchor(Button button, float horizontalAnchor)
+        private static void SetButtonAnchor(Button button, float horizontalAnchor, float width)
         {
             if (button == null)
             {
@@ -995,8 +2451,30 @@ namespace MingBay.UI
             RectTransform rect = button.GetComponent<RectTransform>();
             rect.anchorMin = new Vector2(horizontalAnchor, rect.anchorMin.y);
             rect.anchorMax = new Vector2(horizontalAnchor, rect.anchorMax.y);
-            rect.sizeDelta = new Vector2(250f, rect.sizeDelta.y);
+            rect.sizeDelta = new Vector2(width, rect.sizeDelta.y);
             rect.anchoredPosition = new Vector2(0f, rect.anchoredPosition.y);
+        }
+
+        private static Button FindButton(string objectName)
+        {
+            GameObject buttonObject = FindSceneObject(objectName);
+            return buttonObject != null
+                ? buttonObject.GetComponent<Button>()
+                : null;
+        }
+
+        private static Button FindChildButton(Transform parent, string buttonName)
+        {
+            Transform[] children = parent.GetComponentsInChildren<Transform>(true);
+            foreach (Transform child in children)
+            {
+                if (child.name == buttonName)
+                {
+                    return child.GetComponent<Button>();
+                }
+            }
+
+            return null;
         }
 
         private static GameObject FindSceneObject(string objectName)
@@ -1018,20 +2496,23 @@ namespace MingBay.UI
 
         private void NotifyTicketSelected(int ticketIndex) => TicketSelected?.Invoke(ticketIndex);
 
-        private void NotifyPrimaryActionRequested()
-        {
-            if (dataExpanded)
-            {
-                FollowUpRequested?.Invoke();
-                return;
-            }
-
-            ViewDataRequested?.Invoke();
-        }
+        private void NotifyViewDataRequested() => ViewDataRequested?.Invoke();
+        private void NotifyFollowUpRequested() => FollowUpRequested?.Invoke();
 
         private void NotifyTransferHumanRequested() => TransferHumanRequested?.Invoke();
         private void NotifySaveEvidenceRequested() => SaveEvidenceRequested?.Invoke();
         private void NotifyChatEvidenceActionRequested() => ChatEvidenceActionRequested?.Invoke();
+        private void NotifyEvidenceSelected(int evidenceIndex) => EvidenceSelected?.Invoke(evidenceIndex);
+        private void NotifyNotebookCancelRequested()
+        {
+            HideEvidenceNotebook();
+            NotebookCancelRequested?.Invoke();
+        }
+
+        private void NotifyNotebookEvidence01Selected() => SelectNotebookEvidence(0);
+        private void NotifyNotebookEvidence02Selected() => SelectNotebookEvidence(1);
+        private void NotifyNotebookEvidence03Selected() => SelectNotebookEvidence(2);
+        private void NotifyNotebookEvidence04Selected() => SelectNotebookEvidence(3);
         private void NotifyEvidence01Selected() => EvidenceSelected?.Invoke(0);
         private void NotifyEvidence02Selected() => EvidenceSelected?.Invoke(1);
         private void NotifyEvidence03Selected() => EvidenceSelected?.Invoke(2);

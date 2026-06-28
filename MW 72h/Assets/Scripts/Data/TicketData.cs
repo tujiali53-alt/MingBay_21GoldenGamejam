@@ -2,6 +2,40 @@ using UnityEngine;
 
 namespace MingBay.Data
 {
+    [System.Serializable]
+    public struct TicketDialogueLine
+    {
+        [SerializeField]
+        private string speakerId;
+
+        [SerializeField]
+        private string speakerLabel;
+
+        [SerializeField]
+        [TextArea(2, 5)]
+        private string text;
+
+        [SerializeField]
+        private bool fromUser;
+
+        public string SpeakerId => speakerId;
+        public string SpeakerLabel => speakerLabel;
+        public string Text => text;
+        public bool FromUser => fromUser;
+
+        public TicketDialogueLine(
+            string speakerId,
+            string speakerLabel,
+            string text,
+            bool fromUser)
+        {
+            this.speakerId = speakerId;
+            this.speakerLabel = speakerLabel;
+            this.text = text;
+            this.fromUser = fromUser;
+        }
+    }
+
     /// <summary>
     /// 一条工单的静态配置数据。
     /// 策划可以直接在 Inspector 中调整文本和证据规则，不需要修改代码。
@@ -18,7 +52,7 @@ namespace MingBay.Data
         [SerializeField]
         [InspectorName("阶段 ID")]
         [Tooltip("工单所属阶段，例如 Stage_Tutorial 或 Stage_Day1。")]
-        private string stageId = "Stage_Tutorial";
+        private string stageId = "N1";
 
         [SerializeField]
         [InspectorName("工单标题")]
@@ -57,6 +91,18 @@ namespace MingBay.Data
         [Tooltip("系统自动给出的回复。应与资料中的事实形成可判断的关系。")]
         [TextArea(3, 6)]
         private string aiReply;
+
+        [SerializeField]
+        private TicketDialogueLine[] initialDialogueLines;
+
+        [SerializeField]
+        private TicketDialogueLine[] transferDialogueLines;
+
+        [SerializeField]
+        private TicketDialogueLine[] evidenceCorrectDialogueLines;
+
+        [SerializeField]
+        private TicketDialogueLine[] evidenceWrongDialogueLines;
 
         [Header("资料内容")]
         [SerializeField]
@@ -206,6 +252,10 @@ namespace MingBay.Data
         public string WaitTimeText => waitTimeText;
         public string UserMessage => userMessage;
         public string AiReply => aiReply;
+        public TicketDialogueLine[] InitialDialogueLines => initialDialogueLines;
+        public TicketDialogueLine[] TransferDialogueLines => transferDialogueLines;
+        public TicketDialogueLine[] EvidenceCorrectDialogueLines => evidenceCorrectDialogueLines;
+        public TicketDialogueLine[] EvidenceWrongDialogueLines => evidenceWrongDialogueLines;
         public string ProfileText => profileText;
         public string HistoryText => historyText;
         public string DeviceLogText => deviceLogText;

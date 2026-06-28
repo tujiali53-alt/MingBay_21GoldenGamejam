@@ -1,3 +1,5 @@
+using System;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
@@ -15,13 +17,23 @@ namespace MingBay.UI
         [Header("按钮绑定")]
         [SerializeField]
         [InspectorName("开始游戏按钮")]
-        [Tooltip("玩家点击后进入正式游戏场景。请绑定主菜单中的“开始值班”按钮。")]
+        [Tooltip("玩家点击后进入正式游戏场景。标题界面中通常绑定桌面上的“工单APP”。")]
         private Button startButton;
 
         [SerializeField]
+        [InspectorName("附加开始按钮")]
+        [Tooltip("可选。用于绑定任务栏“工单队列”等同样进入游戏的入口。")]
+        private Button[] additionalStartButtons;
+
+        [SerializeField]
         [InspectorName("退出游戏按钮")]
-        [Tooltip("玩家点击后退出游戏；在 Unity 编辑器中测试时会停止播放模式。")]
+        [Tooltip("可选。玩家点击后退出游戏；在 Unity 编辑器中测试时会停止播放模式。")]
         private Button exitButton;
+
+        [SerializeField]
+        [InspectorName("实时时间文本")]
+        [Tooltip("可选。绑定任务栏右侧时间文本后，会按系统时间自动刷新。")]
+        private TMP_Text clockText;
 
         [Header("场景配置")]
         [SerializeField]
@@ -31,6 +43,7 @@ namespace MingBay.UI
 
         // 防止玩家连续点击开始按钮，造成同一场景被重复加载。
         private bool isLoading;
+        private float nextClockRefreshTime;
 
         /// <summary>
         /// 组件启用时注册按钮事件。
@@ -44,7 +57,24 @@ namespace MingBay.UI
             }
 
             startButton.onClick.AddListener(StartGame);
-            exitButton.onClick.AddListener(ExitGame);
+            AddStartListeners(additionalStartButtons);
+
+            if (exitButton != null)
+            {
+                exitButton.onClick.AddListener(ExitGame);
+            }
+
+            RefreshClockText();
+        }
+
+        private void Update()
+        {
+            if (clockText == null || Time.unscaledTime < nextClockRefreshTime)
+            {
+                return;
+            }
+
+            RefreshClockText();
         }
 
         /// <summary>
@@ -61,6 +91,8 @@ namespace MingBay.UI
             {
                 exitButton.onClick.RemoveListener(ExitGame);
             }
+
+            RemoveStartListeners(additionalStartButtons);
         }
 
         /// <summary>
@@ -73,12 +105,6 @@ namespace MingBay.UI
             if (startButton == null)
             {
                 Debug.LogError("主菜单缺少“开始游戏按钮”引用，请在 MainMenuView 的 Inspector 中完成绑定。", this);
-                isValid = false;
-            }
-
-            if (exitButton == null)
-            {
-                Debug.LogError("主菜单缺少“退出游戏按钮”引用，请在 MainMenuView 的 Inspector 中完成绑定。", this);
                 isValid = false;
             }
 
@@ -113,8 +139,80 @@ namespace MingBay.UI
 
             // 加载期间关闭按钮，给玩家明确反馈并避免重复操作。
             startButton.interactable = false;
-            exitButton.interactable = false;
+            SetButtonsInteractable(additionalStartButtons, false);
+            if (exitButton != null)
+            {
+                exitButton.interactable = false;
+            }
+
             SceneManager.LoadSceneAsync(gameSceneName);
+        }
+
+        private void AddStartListeners(Button[] buttons)
+        {
+            if (buttons == null)
+            {
+                return;
+            }
+
+            foreach (Button button in buttons)
+            {
+                if (button != null)
+                {
+                    button.onClick.AddListener(StartGame);
+                }
+            }
+        }
+
+        private void RemoveStartListeners(Button[] buttons)
+        {
+            if (buttons == null)
+            {
+                return;
+            }
+
+            foreach (Button button in buttons)
+            {
+                if (button != null)
+                {
+                    button.onClick.RemoveListener(StartGame);
+                }
+            }
+        }
+
+        private static void SetButtonsInteractable(Button[] buttons, bool interactable)
+        {
+            if (buttons == null)
+            {
+                return;
+            }
+
+            foreach (Button button in buttons)
+            {
+                if (button != null)
+                {
+                    button.interactable = interactable;
+                }
+            }
+        }
+
+        private void RefreshClockText()
+        {
+            if (clockText == null)
+            {
+                return;
+            }
+
+            DateTime now = DateTime.Now;
+            string period = now.Hour < 12 ? "上午" : "下午";
+            int hour = now.Hour % 12;
+            if (hour == 0)
+            {
+                hour = 12;
+            }
+
+            clockText.text = $"{period}{hour}:{now.Minute:00}";
+            nextClockRefreshTime = Time.unscaledTime + 1f;
         }
 
         /// <summary>

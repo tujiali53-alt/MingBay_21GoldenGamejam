@@ -23,6 +23,10 @@ namespace MingBay.Editor
     {
         private const string GameScenePath = "Assets/Scenes/GameScene.unity";
         private const string TitleScenePath = "Assets/Scenes/TitleScene.unity";
+        private const string SpreadsheetConfigJsonPath =
+            "Assets/Configs/Spreadsheet/MingBaySpreadsheetConfig.json";
+        private const string CurrentSpreadsheetLevelId = "N1";
+        private const string CurrentSpreadsheetLevelName = "第一夜";
         private static readonly string[] TicketAssetPaths =
         {
             "Assets/Configs/Tickets/Ticket_T_S01_001.asset",
@@ -39,7 +43,7 @@ namespace MingBay.Editor
             "Assets/Configs/Tickets/Ticket_T_003.asset",
             "Assets/Configs/Tickets/Ticket_T_004.asset"
         };
-        private const string DatabaseAssetPath = "Assets/Configs/DemoDatabase.asset";
+        private const string DatabaseAssetPath = "Assets/Configs/MingBayProjectDatabase.asset";
         private const string ChineseFontPath =
             "Assets/UI/Fonts/NotoSansSC-Regular SDF.asset";
         private const string ChineseSourceFontPath =
@@ -70,8 +74,11 @@ namespace MingBay.Editor
             MigrateLegacyTicketAssets();
 
             TMP_FontAsset font = EnsureChineseFont();
-            TicketData[] tickets = CreateOrUpdateTickets();
-            DemoDatabase database = CreateOrUpdateDatabase(tickets);
+            TicketData[] allTickets = CreateOrUpdateTickets();
+            TicketData[] tickets = Array.FindAll(
+                allTickets,
+                ticket => ticket != null && ticket.StageId != "Stage_Tutorial");
+            MingBayProjectDatabase database = CreateOrUpdateDatabase(tickets);
 
             Scene scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             Camera camera = CreateCamera();
@@ -88,35 +95,71 @@ namespace MingBay.Editor
             scaler.matchWidthOrHeight = 0.5f;
 
             RectTransform root = canvasObject.GetComponent<RectTransform>();
-            CreateImage("Background", root, Background, Vector2.zero, Vector2.one);
-            CreateTopBar(root, font, out TMP_Text progressText, out TMP_Text statusText,
-                out TMP_Text evidenceText, out TMP_Text resolvedText);
-            CreateQueuePanel(
+            CreateImage("Background", root, Hex("191919"), Vector2.zero, Vector2.one);
+            CreateDesktopShell(
                 root,
                 font,
+                out Button workAppButton,
+                out Button clueNotebookButton,
+                out Button taskbarWorkQueueButton,
+                out Button taskbarDatabaseButton);
+            RectTransform appWindow = CreateTicketAppWindow(
+                root,
+                font,
+                out Button ticketAppCloseButton,
+                out TMP_Text progressText,
+                out TMP_Text statusText,
+                out TMP_Text evidenceText,
+                out TMP_Text resolvedText,
                 out RectTransform queueContent,
-                out TicketQueueItemView queueItemTemplate);
-            RectTransform ticketContentRoot = CreateRect(
-                "TicketContentRoot",
-                root,
-                Vector2.zero,
-                Vector2.one,
-                Vector2.zero,
-                Vector2.zero);
-            CreateTicketPanel(ticketContentRoot, font, out TMP_Text titleText, out TMP_Text metaText,
-                out TMP_Text userMessageText, out TMP_Text aiReplyText);
-            CreateDataArea(ticketContentRoot, font, out GameObject dataPanel, out TMP_Text profileText,
-                out TMP_Text historyText, out TMP_Text deviceLogText, out TMP_Text regionStatusText);
-            CreateActionBar(
-                ticketContentRoot,
-                font,
+                out TicketQueueItemView queueItemTemplate,
+                out TMP_Text titleText,
+                out TMP_Text metaText,
+                out TMP_Text ticketIdText,
+                out GameObject dataPanel,
+                out TMP_Text profileText,
+                out TMP_Text historyText,
+                out TMP_Text deviceLogText,
+                out TMP_Text regionStatusText,
+                out ScrollRect dataScrollRect,
+                out ScrollRect chatScrollRect,
+                out RectTransform chatContent,
+                out GameObject chatBubbleTemplate,
+                out GameObject chatEmptyState,
+                out TMP_Text userMessageText,
+                out TMP_Text aiReplyText,
                 out Button primaryActionButton,
+                out Button dataLookupButton,
                 out Button transferHumanButton,
                 out Button saveEvidenceButton,
-                out Button markResolvedButton);
+                out Button chatEvidenceActionButton,
+                out Button markResolvedButton,
+                out Image markResolvedHoldFill);
+            CreateNotebookPanel(
+                root,
+                font,
+                out GameObject notebookPanel,
+                out TMP_Text notebookReasonText,
+                out TMP_Text notebookUserText,
+                out TMP_Text notebookEmotionText,
+                out TMP_Text notebookRegionText,
+                out TMP_Text notebookTicketIdText,
+                out Button[] notebookEvidenceButtons,
+                out TMP_Text[] notebookEvidenceTexts,
+                out Outline[] notebookEvidenceOutlines,
+                out Button notebookCloseButton,
+                out Button notebookCancelButton,
+                out Button notebookSubmitButton);
             CreateResultPanel(root, font, out GameObject resultPanel, out TMP_Text resultTitleText,
-                out TMP_Text resultDescriptionText, out TMP_Text resultMetricsText,
+                out TMP_Text resultStatusText, out TMP_Text resultDescriptionText, out TMP_Text resultMetricsText,
                 out Button resultActionButton);
+            CreateEvidenceDetailOverlay(
+                root,
+                font,
+                out GameObject evidenceDetailOverlay,
+                out TMP_Text evidenceDetailTitleText,
+                out TMP_Text evidenceDetailBodyText,
+                out Button evidenceDetailCloseButton);
 
             // 先保持对象关闭，避免 AddComponent 时触发尚未绑定引用的 OnEnable。
             GameObject viewObject = new("MainGameView");
@@ -124,28 +167,65 @@ namespace MingBay.Editor
             MainGameView view = viewObject.AddComponent<MainGameView>();
             BindView(
                 view,
+                appWindow.gameObject,
+                ticketAppCloseButton,
+                workAppButton,
+                clueNotebookButton,
+                taskbarWorkQueueButton,
+                taskbarDatabaseButton,
                 queueContent,
                 queueItemTemplate,
-                new[] { ticketContentRoot.gameObject },
+                new[]
+                {
+                    titleText.transform.parent.gameObject,
+                    chatScrollRect.gameObject,
+                    primaryActionButton.transform.parent.gameObject
+                },
                 progressText,
                 statusText,
                 evidenceText,
                 resolvedText,
                 titleText,
                 metaText,
+                ticketIdText,
                 userMessageText,
                 aiReplyText,
+                chatScrollRect,
+                chatContent,
+                chatBubbleTemplate,
+                chatEmptyState,
                 dataPanel,
+                dataScrollRect,
                 profileText,
                 historyText,
                 deviceLogText,
                 regionStatusText,
+                evidenceDetailOverlay,
+                evidenceDetailTitleText,
+                evidenceDetailBodyText,
+                evidenceDetailCloseButton,
                 primaryActionButton,
+                dataLookupButton,
                 transferHumanButton,
                 saveEvidenceButton,
                 markResolvedButton,
+                markResolvedHoldFill,
+                chatEvidenceActionButton,
+                notebookPanel,
+                notebookReasonText,
+                notebookUserText,
+                notebookEmotionText,
+                notebookRegionText,
+                notebookTicketIdText,
+                notebookEvidenceButtons,
+                notebookEvidenceTexts,
+                notebookEvidenceOutlines,
+                notebookCloseButton,
+                notebookCancelButton,
+                notebookSubmitButton,
                 resultPanel,
                 resultTitleText,
+                resultStatusText,
                 resultDescriptionText,
                 resultMetricsText,
                 resultActionButton);
@@ -160,14 +240,15 @@ namespace MingBay.Editor
             systemsObject.SetActive(true);
 
             // 保存前生成队列预览；正式运行时 GameFlowManager 会清理并重新生成。
-            List<TicketData> tutorialTickets = database.GetTicketsByStage("Stage_Tutorial");
-            view.BuildTicketQueue(tutorialTickets);
+            List<TicketData> dayOneTickets = database.GetTicketsByStage(CurrentSpreadsheetLevelId);
+            view.BuildTicketQueue(dayOneTickets);
             view.ShowTicketSelection(
-                "教程关卡",
+                CurrentSpreadsheetLevelName,
                 0,
-                tutorialTickets.Count,
+                dayOneTickets.Count,
                 new GameMetrics(0, 0, 0, 0, 0),
-                new bool[tutorialTickets.Count]);
+                new bool[dayOneTickets.Count]);
+            appWindow.gameObject.SetActive(false);
 
             EditorSceneManager.SaveScene(scene, GameScenePath);
             UpdateBuildSettings();
@@ -183,7 +264,7 @@ namespace MingBay.Editor
         /// 检查生成后的核心数据与 Inspector 引用，避免场景可以保存但运行时因漏绑而报错。
         /// </summary>
         private static void ValidateGeneratedContent(
-            DemoDatabase database,
+            MingBayProjectDatabase database,
             GameFlowManager flowManager,
             MainGameView view,
             TicketQueueItemView queueItemTemplate)
@@ -193,12 +274,12 @@ namespace MingBay.Editor
                 throw new InvalidOperationException("DemoDatabase 至少需要包含一张有效工单。");
             }
 
-            List<TicketData> tutorialTickets = database.GetTicketsByStage("Stage_Tutorial");
-            List<TicketData> dayOneTickets = database.GetTicketsByStage("Stage_Day1");
-            if (tutorialTickets.Count != 2 || dayOneTickets.Count != 4)
+            List<TicketData> dayOneTickets = database.GetTicketsByStage(CurrentSpreadsheetLevelId);
+            if (database.GetTicketsByStage("Stage_Tutorial").Count != 0 ||
+                dayOneTickets.Count != 4)
             {
                 throw new InvalidOperationException(
-                    "新版流程必须包含 2 张教程工单和 4 张第一天正式工单。");
+                    "当前流程应只包含 4 张第一夜工单，不应包含教程工单。");
             }
 
             HashSet<string> ticketIds = new();
@@ -260,6 +341,11 @@ namespace MingBay.Editor
 
         private static TicketData[] CreateOrUpdateTickets()
         {
+            if (TryCreateTicketsFromSpreadsheet(out TicketData[] spreadsheetTickets))
+            {
+                return spreadsheetTickets;
+            }
+
             return new[]
             {
                 CreateOrUpdateTicket(
@@ -385,6 +471,595 @@ namespace MingBay.Editor
             };
         }
 
+        private static bool TryCreateTicketsFromSpreadsheet(out TicketData[] ticketAssets)
+        {
+            ticketAssets = Array.Empty<TicketData>();
+            TextAsset configAsset =
+                AssetDatabase.LoadAssetAtPath<TextAsset>(SpreadsheetConfigJsonPath);
+            if (configAsset == null)
+            {
+                return false;
+            }
+
+            SpreadsheetConfig config =
+                JsonUtility.FromJson<SpreadsheetConfig>(configAsset.text);
+            if (config == null || config.tickets == null || config.tickets.Length == 0)
+            {
+                return false;
+            }
+
+            List<SpreadsheetTicket> playableTickets = new();
+            foreach (SpreadsheetTicket ticket in config.tickets)
+            {
+                if (ticket == null ||
+                    !string.Equals(ticket.levelId, CurrentSpreadsheetLevelId, StringComparison.Ordinal) ||
+                    !string.Equals(ticket.status, "ACTIVE", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                playableTickets.Add(ticket);
+            }
+
+            playableTickets.Sort((left, right) =>
+                left.orderInLevel.CompareTo(right.orderInLevel));
+            if (playableTickets.Count == 0)
+            {
+                return false;
+            }
+
+            List<TicketData> createdTickets = new();
+            foreach (SpreadsheetTicket ticket in playableTickets)
+            {
+                createdTickets.Add(CreateOrUpdateSpreadsheetTicket(config, ticket));
+            }
+
+            ticketAssets = createdTickets.ToArray();
+            return true;
+        }
+
+        private static TicketData CreateOrUpdateSpreadsheetTicket(
+            SpreadsheetConfig config,
+            SpreadsheetTicket ticketConfig)
+        {
+            SpreadsheetUser user = FindSpreadsheetUser(config, ticketConfig.userId);
+            string ticketId = CleanImportedText(ticketConfig.ticketId);
+            string assetPath = $"Assets/Configs/Tickets/Ticket_{ticketId}.asset";
+            string userName = user != null
+                ? CleanImportedText(user.userNameCn)
+                : CleanImportedText(ticketConfig.userId);
+            string region = user != null
+                ? CleanImportedText(user.addressCn)
+                : string.Empty;
+            string userMessage = FirstNonEmpty(
+                JoinDialogueTexts(config, ticketId, "INIT", false),
+                ticketConfig.initialUserRequestCn);
+            string aiReply = FirstNonEmpty(
+                JoinDialogueTexts(config, ticketId, "INIT", true),
+                ticketConfig.aiAutoReplyCn);
+            string profileText = GetPanelContent(config, ticketId, 1);
+            string historyText = GetPanelContent(config, ticketId, 2);
+            string suggestionText = GetPanelContent(config, ticketId, 3);
+            string logText = GetPanelContent(config, ticketId, 4);
+
+            TicketData ticket = CreateOrUpdateTicket(
+                assetPath,
+                ticketId,
+                CleanImportedText(ticketConfig.levelId),
+                CleanImportedText(ticketConfig.ticketTitleCn),
+                userName,
+                region,
+                CleanImportedText(ticketConfig.ticketCategoryCn),
+                "等待 00:00:00",
+                userMessage,
+                aiReply,
+                profileText,
+                historyText,
+                suggestionText,
+                logText,
+                true,
+                $"EVIDENCE_{ticketId}",
+                CleanImportedText(ticketConfig.correctManualResultCn),
+                "证据不足或证据关联错误。",
+                CleanImportedText(ticketConfig.autoClearResultCn),
+                false);
+
+            SerializedObject serializedTicket = new(ticket);
+            string[] followUpLines = BuildFollowUpLines(config, ticketConfig);
+            SetString(
+                serializedTicket,
+                "followUpText",
+                followUpLines.Length > 0 ? followUpLines[0] : string.Empty);
+            SetStringArray(serializedTicket, "followUpLines", followUpLines);
+            SetString(
+                serializedTicket,
+                "transferText",
+                JoinDialogueTexts(config, ticketId, "ON_TRANSFER", null));
+            SetString(
+                serializedTicket,
+                "evidencePromptText",
+                "请选择一条已收集资料作为转人工证据。");
+            serializedTicket.FindProperty("requiresEvidenceSelection").boolValue = true;
+            serializedTicket.FindProperty("allowDirectEvidenceSave").boolValue = true;
+            serializedTicket.FindProperty("finishOnEvidenceSubmission").boolValue = true;
+            serializedTicket.FindProperty("correctEvidenceIndex").intValue =
+                GetFirstNightCorrectEvidenceIndex(ticketId);
+            SetString(
+                serializedTicket,
+                "correctEvidenceUserReply",
+                JoinDialogueTexts(config, ticketId, "EVIDENCE_CORRECT", false));
+            SetString(
+                serializedTicket,
+                "wrongEvidenceUserReply",
+                JoinDialogueTexts(config, ticketId, "EVIDENCE_WRONG", false));
+            SetDialogueLineArray(
+                serializedTicket,
+                "initialDialogueLines",
+                BuildDialogueLines(config, ticketId, "INIT", userName));
+            SetDialogueLineArray(
+                serializedTicket,
+                "transferDialogueLines",
+                BuildDialogueLines(config, ticketId, "ON_TRANSFER", userName));
+            SetDialogueLineArray(
+                serializedTicket,
+                "evidenceCorrectDialogueLines",
+                BuildDialogueLines(config, ticketId, "EVIDENCE_CORRECT", userName));
+            SetDialogueLineArray(
+                serializedTicket,
+                "evidenceWrongDialogueLines",
+                BuildDialogueLines(config, ticketId, "EVIDENCE_WRONG", userName));
+            SetMetricDeltaFromAction(
+                serializedTicket,
+                "followUpMetricDelta",
+                FindSpreadsheetAction(config, "ASK"),
+                false);
+            SetMetricDeltaFromAction(
+                serializedTicket,
+                "transferMetricDelta",
+                FindSpreadsheetAction(config, "TRANSFER"),
+                false);
+            SetMetricDeltaFromAction(
+                serializedTicket,
+                "correctEvidenceMetricDelta",
+                FindSpreadsheetAction(config, "EVIDENCE_CORRECT"),
+                true);
+            SetMetricDeltaFromAction(
+                serializedTicket,
+                "wrongEvidenceMetricDelta",
+                FindSpreadsheetAction(config, "EVIDENCE_WRONG"),
+                true);
+            SetMetricDeltaFromAction(
+                serializedTicket,
+                "resolvedMetricDelta",
+                FindSpreadsheetAction(config, "AUTO_CLEAR"),
+                true);
+            serializedTicket.ApplyModifiedPropertiesWithoutUndo();
+            EditorUtility.SetDirty(ticket);
+            return ticket;
+        }
+
+        private static SpreadsheetUser FindSpreadsheetUser(
+            SpreadsheetConfig config,
+            string userId)
+        {
+            if (config.users == null)
+            {
+                return null;
+            }
+
+            foreach (SpreadsheetUser user in config.users)
+            {
+                if (user != null &&
+                    string.Equals(user.userId, userId, StringComparison.Ordinal))
+                {
+                    return user;
+                }
+            }
+
+            return null;
+        }
+
+        private static SpreadsheetAction FindSpreadsheetAction(
+            SpreadsheetConfig config,
+            string actionType)
+        {
+            if (config.actions == null)
+            {
+                return null;
+            }
+
+            foreach (SpreadsheetAction action in config.actions)
+            {
+                if (action != null &&
+                    string.Equals(action.actionType, actionType, StringComparison.OrdinalIgnoreCase))
+                {
+                    return action;
+                }
+            }
+
+            return null;
+        }
+
+        private static string GetPanelContent(
+            SpreadsheetConfig config,
+            string ticketId,
+            int panelOrder)
+        {
+            if (config.dataPanels == null)
+            {
+                return string.Empty;
+            }
+
+            foreach (SpreadsheetDataPanel panel in config.dataPanels)
+            {
+                if (panel == null ||
+                    panel.panelOrder != panelOrder ||
+                    !string.Equals(panel.ticketId, ticketId, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                return StripPanelHeading(CleanImportedText(panel.panelContentCn));
+            }
+
+            return string.Empty;
+        }
+
+        private static string JoinDialogueTexts(
+            SpreadsheetConfig config,
+            string ticketId,
+            string trigger,
+            bool? aiSpeaker)
+        {
+            List<SpreadsheetDialogue> dialogues = GetDialogues(config, ticketId, trigger);
+            List<string> lines = new();
+            foreach (SpreadsheetDialogue dialogue in dialogues)
+            {
+                bool isAiSpeaker = IsAiSpeaker(dialogue.speakerId);
+                if (aiSpeaker.HasValue && aiSpeaker.Value != isAiSpeaker)
+                {
+                    continue;
+                }
+
+                string text = CleanImportedText(dialogue.textCn);
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    lines.Add(text);
+                }
+            }
+
+            return string.Join("\n", lines);
+        }
+
+        private static TicketDialogueLine[] BuildDialogueLines(
+            SpreadsheetConfig config,
+            string ticketId,
+            string trigger,
+            string userName)
+        {
+            List<SpreadsheetDialogue> dialogues = GetDialogues(config, ticketId, trigger);
+            List<TicketDialogueLine> lines = new();
+            foreach (SpreadsheetDialogue dialogue in dialogues)
+            {
+                string text = CleanImportedText(dialogue.textCn);
+                if (string.IsNullOrWhiteSpace(text))
+                {
+                    continue;
+                }
+
+                string speakerId = CleanImportedText(dialogue.speakerId);
+                lines.Add(
+                    new TicketDialogueLine(
+                        speakerId,
+                        ResolveSpeakerLabel(speakerId, userName),
+                        text,
+                        IsUserSpeaker(speakerId)));
+            }
+
+            return lines.ToArray();
+        }
+
+        private static List<SpreadsheetDialogue> GetDialogues(
+            SpreadsheetConfig config,
+            string ticketId,
+            string trigger)
+        {
+            List<SpreadsheetDialogue> result = new();
+            if (config.dialogues == null)
+            {
+                return result;
+            }
+
+            foreach (SpreadsheetDialogue dialogue in config.dialogues)
+            {
+                if (dialogue == null ||
+                    dialogue.order >= 900 ||
+                    !string.Equals(dialogue.ticketId, ticketId, StringComparison.Ordinal) ||
+                    !string.Equals(dialogue.trigger, trigger, StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                result.Add(dialogue);
+            }
+
+            result.Sort((left, right) => left.order.CompareTo(right.order));
+            return result;
+        }
+
+        private static string[] BuildFollowUpLines(
+            SpreadsheetConfig config,
+            SpreadsheetTicket ticketConfig)
+        {
+            string dialogueFollowUp = JoinDialogueTexts(
+                config,
+                ticketConfig.ticketId,
+                "ASK",
+                false);
+            string sourceText = FirstNonEmpty(dialogueFollowUp, ticketConfig.askReplyCn);
+            List<string> lines = SplitSheetScriptText(sourceText);
+            if (lines.Count == 0)
+            {
+                return Array.Empty<string>();
+            }
+
+            if (ticketConfig.maxAskCount <= 1)
+            {
+                return new[] { string.Join("\n", lines) };
+            }
+
+            return lines.ToArray();
+        }
+
+        private static List<string> SplitSheetScriptText(string sourceText)
+        {
+            string normalized = CleanImportedText(sourceText)
+                .Replace(" /  / ", "\n")
+                .Replace(" / ", "\n");
+            string[] rawLines = normalized.Split('\n');
+            List<string> lines = new();
+            foreach (string rawLine in rawLines)
+            {
+                string line = rawLine.Trim();
+                while (line.StartsWith("-", StringComparison.Ordinal) ||
+                       line.StartsWith("－", StringComparison.Ordinal))
+                {
+                    line = line[1..].TrimStart();
+                }
+
+                if (!string.IsNullOrWhiteSpace(line))
+                {
+                    lines.Add(line);
+                }
+            }
+
+            return lines;
+        }
+
+        private static string StripPanelHeading(string content)
+        {
+            if (string.IsNullOrWhiteSpace(content))
+            {
+                return string.Empty;
+            }
+
+            string normalized = content.Replace("\r\n", "\n");
+            int firstLineEnd = normalized.IndexOf('\n');
+            if (firstLineEnd < 0)
+            {
+                return normalized.Trim();
+            }
+
+            string firstLine = normalized[..firstLineEnd].Trim();
+            if (firstLine.StartsWith("资料", StringComparison.Ordinal))
+            {
+                return normalized[(firstLineEnd + 1)..].Trim();
+            }
+
+            return normalized.Trim();
+        }
+
+        private static bool IsAiSpeaker(string speakerId)
+        {
+            return string.Equals(speakerId, "AI", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(speakerId, "A07", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool IsUserSpeaker(string speakerId)
+        {
+            return !string.IsNullOrWhiteSpace(speakerId) &&
+                   speakerId.StartsWith("User", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static string ResolveSpeakerLabel(string speakerId, string userName)
+        {
+            if (string.Equals(speakerId, "AI", StringComparison.OrdinalIgnoreCase))
+            {
+                return "\u660e\u6e7e\u901a AI";
+            }
+
+            if (string.Equals(speakerId, "A07", StringComparison.OrdinalIgnoreCase))
+            {
+                return "\u5ba2\u670d A-07";
+            }
+
+            if (IsUserSpeaker(speakerId))
+            {
+                return string.IsNullOrWhiteSpace(userName)
+                    ? speakerId
+                    : userName;
+            }
+
+            return string.IsNullOrWhiteSpace(speakerId)
+                ? "\u672a\u77e5"
+                : speakerId;
+        }
+
+        private static string FirstNonEmpty(params string[] values)
+        {
+            foreach (string value in values)
+            {
+                string text = CleanImportedText(value);
+                if (!string.IsNullOrWhiteSpace(text))
+                {
+                    return text;
+                }
+            }
+
+            return string.Empty;
+        }
+
+        private static string CleanImportedText(string value)
+        {
+            return string.IsNullOrWhiteSpace(value)
+                ? string.Empty
+                : value.Replace("\r\n", "\n").Trim();
+        }
+
+        private static int GetFirstNightCorrectEvidenceIndex(string ticketId)
+        {
+            return ticketId switch
+            {
+                "N1_T02" => 1,
+                _ => 3
+            };
+        }
+
+        private static void SetMetricDeltaFromAction(
+            SerializedObject target,
+            string propertyName,
+            SpreadsheetAction action,
+            bool closesTicket)
+        {
+            SetMetricDelta(
+                target,
+                propertyName,
+                closesTicket ? 1 : 0,
+                action != null ? action.manualTransferCountDelta : 0,
+                0,
+                action != null ? action.riskValueDelta : 0);
+        }
+
+        [Serializable]
+        private sealed class SpreadsheetConfig
+        {
+            public SpreadsheetLevel[] levels;
+            public SpreadsheetUser[] users;
+            public SpreadsheetTicket[] tickets;
+            public SpreadsheetDataPanel[] dataPanels;
+            public SpreadsheetDialogue[] dialogues;
+            public SpreadsheetAction[] actions;
+            public SpreadsheetEvidenceChain[] evidenceChains;
+        }
+
+        [Serializable]
+        private sealed class SpreadsheetLevel
+        {
+            public string levelId;
+            public string levelNameCn;
+            public string startTime;
+            public string endTime;
+            public int ticketCount;
+            public bool hasKeywordDrag;
+            public string evidenceTemplateId;
+            public string mechanicCn;
+            public string configStatusCn;
+            public string nextLevelId;
+        }
+
+        [Serializable]
+        private sealed class SpreadsheetUser
+        {
+            public string userId;
+            public string userNameCn;
+            public string addressCn;
+            public string accountStatusCn;
+            public string residentVerifyCn;
+            public string firstTicketId;
+            public string noteCn;
+        }
+
+        [Serializable]
+        private sealed class SpreadsheetTicket
+        {
+            public string ticketId;
+            public string levelId;
+            public int orderInLevel;
+            public string userId;
+            public string ticketTitleCn;
+            public string ticketCategoryCn;
+            public string initialUserRequestCn;
+            public string aiAutoReplyCn;
+            public string askReplyCn;
+            public int maxAskCount;
+            public bool hasKeywordDrag;
+            public string evidenceTemplateId;
+            public string correctChainId;
+            public string correctManualResultCn;
+            public string autoClearResultCn;
+            public string status;
+        }
+
+        [Serializable]
+        private sealed class SpreadsheetDataPanel
+        {
+            public string panelId;
+            public string ticketId;
+            public int panelOrder;
+            public string panelType;
+            public string panelTitleCn;
+            public string panelContentCn;
+            public int textLength;
+            public string unlockCondition;
+            public string relatedKeywordIds;
+        }
+
+        [Serializable]
+        private sealed class SpreadsheetDialogue
+        {
+            public string dialogueId;
+            public string ticketId;
+            public int order;
+            public string trigger;
+            public string speakerId;
+            public string avatarId;
+            public string textCn;
+            public int textLength;
+            public bool useTypewriter;
+            public float typewriterSpeed;
+            public string sfxId;
+            public string nextDialogueId;
+        }
+
+        [Serializable]
+        private sealed class SpreadsheetAction
+        {
+            public string actionId;
+            public string actionNameCn;
+            public string actionType;
+            public string descriptionCn;
+            public int autoClearCountDelta;
+            public int manualTransferCountDelta;
+            public int riskValueDelta;
+            public int evidencePresentedCountDelta;
+            public bool isTicketEnd;
+        }
+
+        [Serializable]
+        private sealed class SpreadsheetEvidenceChain
+        {
+            public string chainId;
+            public string ticketId;
+            public string templateId;
+            public string correctChainTextCn;
+            public string correctResultCn;
+            public string wrongResultCn;
+            public int manualTransferCountDelta;
+            public int riskValueDelta;
+            public int autoClearCountDelta;
+            public int evidencePresentedCountDelta;
+        }
+
         private static TicketData CreateOrUpdateTicket(
             string assetPath,
             string ticketId,
@@ -404,7 +1079,8 @@ namespace MingBay.Editor
             string evidenceId,
             string onSaveEvidenceText,
             string onWrongEvidenceText,
-            string onResolvedText)
+            string onResolvedText,
+            bool configureLegacyFlow = true)
         {
             TicketData ticket = AssetDatabase.LoadAssetAtPath<TicketData>(assetPath);
             if (ticket == null)
@@ -432,7 +1108,10 @@ namespace MingBay.Editor
             SetString(serializedTicket, "onSaveEvidenceText", onSaveEvidenceText);
             SetString(serializedTicket, "onWrongEvidenceText", onWrongEvidenceText);
             SetString(serializedTicket, "onResolvedText", onResolvedText);
-            ConfigureTicketFlow(serializedTicket, ticketId);
+            if (configureLegacyFlow)
+            {
+                ConfigureTicketFlow(serializedTicket, ticketId);
+            }
             serializedTicket.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(ticket);
             return ticket;
@@ -644,12 +1323,13 @@ namespace MingBay.Editor
             }
         }
 
-        private static DemoDatabase CreateOrUpdateDatabase(TicketData[] ticketAssets)
+        private static MingBayProjectDatabase CreateOrUpdateDatabase(TicketData[] ticketAssets)
         {
-            DemoDatabase database = AssetDatabase.LoadAssetAtPath<DemoDatabase>(DatabaseAssetPath);
+            MingBayProjectDatabase database =
+                AssetDatabase.LoadAssetAtPath<MingBayProjectDatabase>(DatabaseAssetPath);
             if (database == null)
             {
-                database = ScriptableObject.CreateInstance<DemoDatabase>();
+                database = ScriptableObject.CreateInstance<MingBayProjectDatabase>();
                 AssetDatabase.CreateAsset(database, DatabaseAssetPath);
             }
 
@@ -660,6 +1340,9 @@ namespace MingBay.Editor
             {
                 tickets.GetArrayElementAtIndex(index).objectReferenceValue = ticketAssets[index];
             }
+
+            SetStringArray(serializedDatabase, "stageOrder", CurrentSpreadsheetLevelId);
+            SetStringArray(serializedDatabase, "stageDisplayNames", CurrentSpreadsheetLevelName);
             serializedDatabase.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(database);
             return database;
@@ -994,6 +1677,1519 @@ namespace MingBay.Editor
         private static void CreateEventSystem()
         {
             new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
+        }
+
+        private static void CreateDesktopShell(
+            RectTransform root,
+            TMP_FontAsset font,
+            out Button workAppButton,
+            out Button clueNotebookButton,
+            out Button taskbarWorkQueueButton,
+            out Button taskbarDatabaseButton)
+        {
+            CreateImage(
+                "MainStageShadow",
+                root,
+                Hex("0C0C0C"),
+                new Vector2(0.075f, 0.09f),
+                new Vector2(0.925f, 0.91f));
+
+            RectTransform terminalFrame = CreateImage(
+                "MWT_TerminalFrame",
+                root,
+                Hex("3C3C3C"),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(1500f, 760f),
+                new Vector2(0f, -8f));
+
+            RectTransform desktop = CreateImage(
+                "DesktopSurface",
+                terminalFrame,
+                Hex("222222"),
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(-26f, -26f),
+                Vector2.zero);
+
+            CreateTitleCountdownBar(desktop, font);
+
+            workAppButton = CreateDesktopShortcutButton(
+                desktop,
+                font,
+                "DesktopButton_WorkApp",
+                "工单APP",
+                new Vector2(92f, -110f),
+                true);
+            clueNotebookButton = CreateDesktopShortcutButton(
+                desktop,
+                font,
+                "DesktopButton_ClueNotebook",
+                "线索笔记",
+                new Vector2(92f, -224f),
+                true);
+
+            CreateTitleCenterLogo(desktop, font);
+            CreateMentorBubble(desktop, font);
+            CreateCustomCursor(desktop, font);
+            CreateInputMethodWarning(desktop, font);
+
+            RectTransform taskbar = CreateImage(
+                "Taskbar",
+                desktop,
+                Hex("575757"),
+                Vector2.zero,
+                new Vector2(1f, 0f),
+                new Vector2(0f, 70f),
+                new Vector2(0f, 35f));
+            CreateWindowsGlyph(taskbar);
+            taskbarWorkQueueButton = CreateTaskbarLabel(
+                taskbar,
+                font,
+                "Taskbar_WorkQueue",
+                "工单队列",
+                new Vector2(120f, 0f),
+                Hex("C7E6D8"));
+            taskbarDatabaseButton = CreateTaskbarLabel(
+                taskbar,
+                font,
+                "Taskbar_Database",
+                "资料库",
+                new Vector2(365f, 0f),
+                Hex("D0D0D0"));
+            CreateRiskIndicator(taskbar, font);
+            CreateClock(taskbar, font);
+
+            CreateImage(
+                "GlobalStatusBar",
+                root,
+                Hex("6A6A6A"),
+                new Vector2(0.5f, 0f),
+                new Vector2(0.5f, 0f),
+                new Vector2(600f, 36f),
+                new Vector2(0f, 112f));
+        }
+
+        private static RectTransform CreateTicketAppWindow(
+            RectTransform root,
+            TMP_FontAsset font,
+            out Button ticketAppCloseButton,
+            out TMP_Text progressText,
+            out TMP_Text statusText,
+            out TMP_Text evidenceText,
+            out TMP_Text resolvedText,
+            out RectTransform queueContent,
+            out TicketQueueItemView queueItemTemplate,
+            out TMP_Text titleText,
+            out TMP_Text metaText,
+            out TMP_Text ticketIdText,
+            out GameObject dataPanel,
+            out TMP_Text profileText,
+            out TMP_Text historyText,
+            out TMP_Text deviceLogText,
+            out TMP_Text regionStatusText,
+            out ScrollRect dataScrollRect,
+            out ScrollRect chatScrollRect,
+            out RectTransform chatContent,
+            out GameObject chatBubbleTemplate,
+            out GameObject chatEmptyState,
+            out TMP_Text userMessageText,
+            out TMP_Text aiReplyText,
+            out Button primaryActionButton,
+            out Button dataLookupButton,
+            out Button transferHumanButton,
+            out Button saveEvidenceButton,
+            out Button chatEvidenceActionButton,
+            out Button markResolvedButton,
+            out Image markResolvedHoldFill)
+        {
+            RectTransform window = CreateImage(
+                "TicketAppWindow",
+                root,
+                Hex("A7A7A7"),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(1280f, 740f),
+                new Vector2(0f, -10f));
+            Outline outline = window.gameObject.AddComponent<Outline>();
+            outline.effectColor = Hex("E2E2E2");
+            outline.effectDistance = new Vector2(2f, -2f);
+
+            RectTransform titleBar = CreateImage(
+                "TicketAppTitleBar",
+                window,
+                Hex("D3D3D3"),
+                new Vector2(0f, 1f),
+                Vector2.one,
+                new Vector2(0f, 40f),
+                new Vector2(0f, -20f));
+            CreateText(
+                "Txt_AppTitle",
+                titleBar,
+                font,
+                "MWT工单app",
+                17f,
+                FontStyles.Bold,
+                Hex("303030"),
+                TextAlignmentOptions.MidlineLeft,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(12f, 0f),
+                new Vector2(-40f, 0f));
+            CreateText(
+                "Txt_ClosePlaceholder",
+                titleBar,
+                font,
+                "×",
+                24f,
+                FontStyles.Bold,
+                Hex("606060"),
+                TextAlignmentOptions.Center,
+                new Vector2(1f, 0f),
+                Vector2.one,
+                new Vector2(-36f, 0f),
+                Vector2.zero);
+            Transform closePlaceholder = titleBar.Find("Txt_ClosePlaceholder");
+            if (closePlaceholder != null)
+            {
+                closePlaceholder.gameObject.SetActive(false);
+            }
+
+            ticketAppCloseButton = CreateButton(
+                "Btn_TicketAppClose",
+                titleBar,
+                font,
+                "X",
+                Hex("D3D3D3"),
+                Hex("C4C4C4"),
+                Hex("606060"),
+                new Vector2(1f, 0.5f),
+                new Vector2(36f, 40f));
+            ticketAppCloseButton.GetComponent<RectTransform>().anchoredPosition =
+                new Vector2(-18f, 0f);
+
+            RectTransform queuePanel = CreateImage(
+                "TicketQueuePanel",
+                window,
+                Hex("777777"),
+                new Vector2(0f, 0f),
+                new Vector2(0.29f, 1f),
+                new Vector2(0f, -58f),
+                new Vector2(0f, -69f));
+            queuePanel.offsetMin = new Vector2(0f, 0f);
+            queuePanel.offsetMax = new Vector2(0f, -40f);
+            CreateText(
+                "Txt_QueueTitle",
+                queuePanel,
+                font,
+                "工单队列",
+                18f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.MidlineLeft,
+                new Vector2(0f, 1f),
+                Vector2.one,
+                new Vector2(16f, -40f),
+                new Vector2(-12f, 0f));
+            RectTransform queueViewport = CreateImage(
+                "TicketQueueViewport",
+                queuePanel,
+                new Color(0f, 0f, 0f, 0f),
+                Vector2.zero,
+                Vector2.one);
+            queueViewport.offsetMin = new Vector2(18f, 18f);
+            queueViewport.offsetMax = new Vector2(-18f, -58f);
+            queueViewport.gameObject.AddComponent<RectMask2D>();
+            queueContent = CreateRect(
+                "TicketQueueContent",
+                queueViewport,
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                Vector2.zero,
+                Vector2.zero);
+            queueContent.pivot = new Vector2(0.5f, 1f);
+            ScrollRect queueScrollRect = queuePanel.gameObject.AddComponent<ScrollRect>();
+            queueScrollRect.viewport = queueViewport;
+            queueScrollRect.content = queueContent;
+            queueScrollRect.horizontal = false;
+            queueScrollRect.vertical = true;
+            queueScrollRect.scrollSensitivity = 32f;
+            queueScrollRect.movementType = ScrollRect.MovementType.Clamped;
+            queueItemTemplate = CreateTicketQueueTemplate(queueContent, font);
+
+            RectTransform infoPanel = CreateImage(
+                "TicketInfoPanel",
+                window,
+                Hex("A0A0A0"),
+                new Vector2(0.29f, 0.7f),
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+            infoPanel.offsetMin = new Vector2(0f, 0f);
+            infoPanel.offsetMax = new Vector2(0f, -40f);
+            titleText = CreateText(
+                "Txt_TicketTitle",
+                infoPanel,
+                font,
+                "工单类型：具体工单内容",
+                23f,
+                FontStyles.Bold,
+                Hex("555555"),
+                TextAlignmentOptions.TopLeft,
+                new Vector2(0f, 0.38f),
+                Vector2.one,
+                new Vector2(18f, 8f),
+                new Vector2(-18f, -14f));
+            metaText = CreateText(
+                "Txt_TicketMeta",
+                infoPanel,
+                font,
+                "用户：--    用户情绪：--\n区域：--",
+                16f,
+                FontStyles.Bold,
+                Hex("696969"),
+                TextAlignmentOptions.TopLeft,
+                Vector2.zero,
+                new Vector2(0.78f, 0.38f),
+                new Vector2(18f, 12f),
+                new Vector2(-8f, -6f));
+            ticketIdText = CreateText(
+                "Txt_TicketId",
+                infoPanel,
+                font,
+                "#T_---",
+                16f,
+                FontStyles.Bold,
+                Hex("E6E6E6"),
+                TextAlignmentOptions.BottomRight,
+                new Vector2(0.78f, 0f),
+                new Vector2(1f, 0.38f),
+                new Vector2(0f, 12f),
+                new Vector2(-18f, -6f));
+
+            RectTransform hiddenStatusRefs = CreateRect(
+                "RuntimeStatusTextRefs",
+                infoPanel,
+                Vector2.zero,
+                Vector2.zero,
+                Vector2.zero,
+                Vector2.zero);
+            hiddenStatusRefs.gameObject.SetActive(false);
+            progressText = CreateHiddenInfoText(hiddenStatusRefs, font, "Txt_TicketProgressRuntime");
+            statusText = CreateHiddenInfoText(hiddenStatusRefs, font, "Txt_StatusRuntime");
+            evidenceText = CreateHiddenInfoText(hiddenStatusRefs, font, "Txt_EvidenceRuntime");
+            resolvedText = CreateHiddenInfoText(hiddenStatusRefs, font, "Txt_ResolvedRuntime");
+
+            CreateChatArea(
+                window,
+                font,
+                out chatScrollRect,
+                out chatContent,
+                out chatBubbleTemplate,
+                out chatEmptyState,
+                out userMessageText,
+                out aiReplyText);
+
+            CreateProcessModule(
+                window,
+                font,
+                out primaryActionButton,
+                out dataLookupButton,
+                out transferHumanButton,
+                out saveEvidenceButton,
+                out chatEvidenceActionButton,
+                out markResolvedButton,
+                out markResolvedHoldFill);
+
+            dataPanel = CreateEvidenceLibraryPanel(
+                window.parent as RectTransform,
+                font,
+                out dataScrollRect,
+                out profileText,
+                out historyText,
+                out deviceLogText,
+                out regionStatusText);
+
+            return window;
+        }
+
+        private static TicketQueueItemView CreateTicketQueueTemplate(RectTransform parent, TMP_FontAsset font)
+        {
+            RectTransform item = CreateImage(
+                "QueueItemPlaceholder",
+                parent,
+                Hex("D9D9D9"),
+                new Vector2(0f, 1f),
+                Vector2.one,
+                new Vector2(0f, 86f),
+                Vector2.zero);
+            Button button = item.gameObject.AddComponent<Button>();
+            Image background = item.GetComponent<Image>();
+            button.targetGraphic = background;
+
+            CreateImage(
+                "AvatarPlaceholder",
+                item,
+                Hex("6E7B7B"),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(58f, 58f),
+                new Vector2(38f, 0f));
+            TMP_Text summary = CreateText(
+                "Txt_Summary",
+                item,
+                font,
+                "T_D01_001\n导航罚款\n张先生·6-24",
+                16f,
+                FontStyles.Bold,
+                Hex("292929"),
+                TextAlignmentOptions.MidlineLeft,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(78f, 0f),
+                new Vector2(-8f, 0f));
+
+            TicketQueueItemView view = item.gameObject.AddComponent<TicketQueueItemView>();
+            view.BindReferences(button, background, summary);
+            item.gameObject.SetActive(false);
+            return view;
+        }
+
+        private static void CreateChatArea(
+            RectTransform window,
+            TMP_FontAsset font,
+            out ScrollRect chatScrollRect,
+            out RectTransform chatContent,
+            out GameObject chatBubbleTemplate,
+            out GameObject chatEmptyState,
+            out TMP_Text userMessageText,
+            out TMP_Text aiReplyText)
+        {
+            RectTransform chatPanel = CreateImage(
+                "ChatPanel",
+                window,
+                Hex("B0B0B0"),
+                new Vector2(0.29f, 0.16f),
+                new Vector2(1f, 0.7f),
+                new Vector2(0f, 0f),
+                Vector2.zero);
+
+            RectTransform viewport = CreateImage(
+                "Viewport",
+                chatPanel,
+                new Color(0f, 0f, 0f, 0f),
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+            viewport.offsetMin = new Vector2(18f, 12f);
+            viewport.offsetMax = new Vector2(-18f, -12f);
+            viewport.gameObject.AddComponent<RectMask2D>();
+
+            chatContent = CreateRect(
+                "ChatContent",
+                viewport,
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                Vector2.zero,
+                new Vector2(0f, 0f));
+            chatContent.pivot = new Vector2(0.5f, 1f);
+            VerticalLayoutGroup layout = chatContent.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(18, 18, 14, 14);
+            layout.spacing = 14f;
+            layout.childAlignment = TextAnchor.UpperLeft;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            ContentSizeFitter fitter = chatContent.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            chatScrollRect = chatPanel.gameObject.AddComponent<ScrollRect>();
+            chatScrollRect.viewport = viewport;
+            chatScrollRect.content = chatContent;
+            chatScrollRect.horizontal = false;
+            chatScrollRect.vertical = true;
+            chatScrollRect.movementType = ScrollRect.MovementType.Clamped;
+
+            RectTransform emptyState = CreateRect(
+                "ChatEmptyState",
+                chatPanel,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                Vector2.zero,
+                new Vector2(360f, 150f));
+            CreateLogoMark(emptyState);
+            CreateText(
+                "Txt_EmptyChat",
+                emptyState,
+                font,
+                "请选择左侧待处理工单进入对话",
+                18f,
+                FontStyles.Bold,
+                Hex("858585"),
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(0f, 0f),
+                new Vector2(0f, -72f));
+            chatEmptyState = emptyState.gameObject;
+
+            chatBubbleTemplate = CreateImage(
+                "ChatBubbleTemplate",
+                chatContent,
+                new Color(0f, 0f, 0f, 0f),
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(0f, 132f),
+                Vector2.zero).gameObject;
+            LayoutElement bubbleLayout = chatBubbleTemplate.AddComponent<LayoutElement>();
+            bubbleLayout.preferredHeight = 132f;
+            RectTransform chatBubbleRect = chatBubbleTemplate.GetComponent<RectTransform>();
+            RectTransform leftAvatar = CreateImage(
+                "AvatarLeft",
+                chatBubbleRect,
+                Hex("416AC4"),
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(58f, 58f),
+                new Vector2(16f, -34f));
+            Outline leftAvatarOutline = leftAvatar.gameObject.AddComponent<Outline>();
+            leftAvatarOutline.effectColor = Hex("1C376E");
+            leftAvatarOutline.effectDistance = new Vector2(2f, -2f);
+
+            RectTransform rightAvatar = CreateImage(
+                "AvatarRight",
+                chatBubbleRect,
+                Hex("111111"),
+                new Vector2(1f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(58f, 58f),
+                new Vector2(-16f, -34f));
+            Outline rightAvatarOutline = rightAvatar.gameObject.AddComponent<Outline>();
+            rightAvatarOutline.effectColor = Hex("000000");
+            rightAvatarOutline.effectDistance = new Vector2(2f, -2f);
+
+            CreateText(
+                "Txt_Speaker",
+                chatBubbleRect,
+                font,
+                "路人甲",
+                17f,
+                FontStyles.Bold,
+                Hex("202020"),
+                TextAlignmentOptions.MidlineLeft,
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(96f, -8f),
+                new Vector2(280f, 28f));
+
+            RectTransform bubbleBody = CreateImage(
+                "BubbleBody",
+                chatBubbleRect,
+                Hex("F2F2F2"),
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(650f, 82f),
+                new Vector2(96f, -46f));
+            CreateText(
+                "Txt_Bubble",
+                bubbleBody,
+                font,
+                "对话模板",
+                20f,
+                FontStyles.Normal,
+                Hex("222222"),
+                TextAlignmentOptions.TopLeft,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(18f, 12f),
+                new Vector2(-18f, -10f));
+            chatBubbleTemplate.SetActive(false);
+
+            RectTransform hidden = CreateRect(
+                "RuntimeChatTextRefs",
+                chatPanel,
+                Vector2.zero,
+                Vector2.zero,
+                Vector2.zero,
+                Vector2.zero);
+            hidden.gameObject.SetActive(false);
+            userMessageText = CreateText(
+                "Txt_UserMessageRuntime",
+                hidden,
+                font,
+                string.Empty,
+                12f,
+                FontStyles.Normal,
+                PrimaryText,
+                TextAlignmentOptions.TopLeft,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+            aiReplyText = CreateText(
+                "Txt_AiReplyRuntime",
+                hidden,
+                font,
+                string.Empty,
+                12f,
+                FontStyles.Normal,
+                PrimaryText,
+                TextAlignmentOptions.TopLeft,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+        }
+
+        private static void CreateProcessModule(
+            RectTransform window,
+            TMP_FontAsset font,
+            out Button primaryActionButton,
+            out Button dataLookupButton,
+            out Button transferHumanButton,
+            out Button saveEvidenceButton,
+            out Button chatEvidenceActionButton,
+            out Button markResolvedButton,
+            out Image markResolvedHoldFill)
+        {
+            RectTransform actionBar = CreateImage(
+                "ProcessModule",
+                window,
+                Hex("D8D8D8"),
+                new Vector2(0.29f, 0f),
+                new Vector2(1f, 0.16f),
+                Vector2.zero,
+                Vector2.zero);
+
+            primaryActionButton = CreateButton(
+                "Btn_FollowUp",
+                actionBar,
+                font,
+                "追问",
+                Hex("35AF6B"),
+                Hex("42C87C"),
+                PrimaryText,
+                new Vector2(0.13f, 0.5f),
+                new Vector2(154f, 76f));
+            dataLookupButton = CreateButton(
+                "Btn_DataLookup",
+                actionBar,
+                font,
+                "资料库查找",
+                Hex("526ED0"),
+                Hex("6681E8"),
+                PrimaryText,
+                new Vector2(0.34f, 0.5f),
+                new Vector2(210f, 76f));
+            transferHumanButton = CreateButton(
+                "Btn_TransferHuman",
+                actionBar,
+                font,
+                "转人工",
+                Hex("7251A8"),
+                Hex("8562C4"),
+                PrimaryText,
+                new Vector2(0.56f, 0.5f),
+                new Vector2(180f, 76f));
+            markResolvedButton = CreateButton(
+                "Btn_MarkResolved",
+                actionBar,
+                font,
+                "✓  标记已解决",
+                Hex("D95757"),
+                Hex("EB6767"),
+                PrimaryText,
+                new Vector2(0.82f, 0.5f),
+                new Vector2(290f, 76f));
+            RectTransform fill = CreateImage(
+                "HoldProgressFill",
+                markResolvedButton.GetComponent<RectTransform>(),
+                new Color(1f, 1f, 1f, 0.25f),
+                Vector2.zero,
+                Vector2.one).GetComponent<RectTransform>();
+            markResolvedHoldFill = fill.GetComponent<Image>();
+            markResolvedHoldFill.type = Image.Type.Filled;
+            markResolvedHoldFill.fillMethod = Image.FillMethod.Horizontal;
+            markResolvedHoldFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            markResolvedHoldFill.fillAmount = 0f;
+            markResolvedHoldFill.raycastTarget = false;
+            markResolvedHoldFill.transform.SetAsFirstSibling();
+
+            saveEvidenceButton = CreateButton(
+                "Btn_SaveEvidenceHidden",
+                actionBar,
+                font,
+                "保留证据",
+                Hex("35AF6B"),
+                Hex("42C87C"),
+                PrimaryText,
+                new Vector2(0.5f, 1.8f),
+                new Vector2(1f, 1f));
+            saveEvidenceButton.gameObject.SetActive(false);
+
+            chatEvidenceActionButton = CreateButton(
+                "Btn_ChatEvidenceActionHidden",
+                actionBar,
+                font,
+                "出示证据",
+                Hex("526ED0"),
+                Hex("6681E8"),
+                PrimaryText,
+                new Vector2(0.5f, 1.8f),
+                new Vector2(1f, 1f));
+            chatEvidenceActionButton.gameObject.SetActive(false);
+        }
+
+        private static GameObject CreateEvidenceLibraryPanel(
+            RectTransform root,
+            TMP_FontAsset font,
+            out ScrollRect dataScrollRect,
+            out TMP_Text profileText,
+            out TMP_Text historyText,
+            out TMP_Text deviceLogText,
+            out TMP_Text regionStatusText)
+        {
+            RectTransform panel = CreateImage(
+                "EvidenceLibraryPanel",
+                root,
+                Hex("575757"),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(320f, 740f),
+                new Vector2(800f, -10f));
+            Outline outline = panel.gameObject.AddComponent<Outline>();
+            outline.effectColor = Hex("E2E2E2");
+            outline.effectDistance = new Vector2(2f, -2f);
+
+            RectTransform viewport = CreateImage(
+                "EvidenceViewport",
+                panel,
+                new Color(0f, 0f, 0f, 0f),
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(-18f, -18f),
+                Vector2.zero);
+            viewport.gameObject.AddComponent<RectMask2D>();
+
+            RectTransform content = CreateRect(
+                "EvidenceContent",
+                viewport,
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                Vector2.zero,
+                new Vector2(0f, 0f));
+            content.pivot = new Vector2(0.5f, 1f);
+            VerticalLayoutGroup layout = content.gameObject.AddComponent<VerticalLayoutGroup>();
+            layout.padding = new RectOffset(14, 14, 14, 14);
+            layout.spacing = 18f;
+            layout.childAlignment = TextAnchor.UpperCenter;
+            layout.childControlWidth = true;
+            layout.childControlHeight = true;
+            layout.childForceExpandWidth = true;
+            layout.childForceExpandHeight = false;
+            ContentSizeFitter fitter = content.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            dataScrollRect = panel.gameObject.AddComponent<ScrollRect>();
+            dataScrollRect.viewport = viewport;
+            dataScrollRect.content = content;
+            dataScrollRect.horizontal = false;
+            dataScrollRect.vertical = true;
+            dataScrollRect.scrollSensitivity = 32f;
+            dataScrollRect.movementType = ScrollRect.MovementType.Clamped;
+
+            profileText = CreateEvidenceCard(
+                content,
+                font,
+                "EvidenceCard_Profile",
+                "资料01:",
+                "东区3号楼/22:14断链/\n自动重连失败，近夜间\n多次门禁短断");
+            historyText = CreateEvidenceCard(
+                content,
+                font,
+                "EvidenceCard_History",
+                "资料02:",
+                "查看资料详情\n收集此资料");
+            deviceLogText = CreateEvidenceCard(
+                content,
+                font,
+                "EvidenceCard_Device",
+                "资料03:",
+                "东区3号楼/22:14断链/\n自动重连失败，近夜间\n多次门禁短断");
+            regionStatusText = CreateEvidenceCard(
+                content,
+                font,
+                "EvidenceCard_Region",
+                "资料04:",
+                "东区3号楼/22:14断链/\n自动重连失败，近夜间\n多次门禁短断");
+
+            panel.gameObject.SetActive(false);
+            return panel.gameObject;
+        }
+
+        private static TMP_Text CreateEvidenceCard(
+            RectTransform parent,
+            TMP_FontAsset font,
+            string name,
+            string title,
+            string body)
+        {
+            RectTransform card = CreateImage(
+                name,
+                parent,
+                Hex("C9C9C9"),
+                new Vector2(0f, 1f),
+                Vector2.one,
+                new Vector2(0f, 220f),
+                Vector2.zero);
+            LayoutElement layout = card.gameObject.AddComponent<LayoutElement>();
+            layout.preferredHeight = 220f;
+            Button cardButton = card.gameObject.AddComponent<Button>();
+            cardButton.targetGraphic = card.GetComponent<Image>();
+
+            TMP_Text titleText = CreateText(
+                "Txt_Title",
+                card,
+                font,
+                title,
+                24f,
+                FontStyles.Bold,
+                Hex("5A5A5A"),
+                TextAlignmentOptions.MidlineLeft,
+                new Vector2(0f, 1f),
+                Vector2.one,
+                new Vector2(18f, -52f),
+                new Vector2(-14f, -12f));
+            titleText.overflowMode = TextOverflowModes.Truncate;
+
+            TMP_Text bodyText = CreateText(
+                "Txt_Body",
+                card,
+                font,
+                body,
+                18f,
+                FontStyles.Normal,
+                Hex("5A5A5A"),
+                TextAlignmentOptions.TopLeft,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(18f, 14f),
+                new Vector2(-18f, -66f));
+            bodyText.overflowMode = TextOverflowModes.Truncate;
+
+            RectTransform actionRow = CreateRect(
+                "ActionRow",
+                card,
+                new Vector2(0f, 0f),
+                new Vector2(1f, 0f),
+                new Vector2(0f, 42f),
+                new Vector2(0f, 72f));
+            actionRow.offsetMin = new Vector2(10f, 8f);
+            actionRow.offsetMax = new Vector2(-10f, 80f);
+            VerticalLayoutGroup actionLayout = actionRow.gameObject.AddComponent<VerticalLayoutGroup>();
+            actionLayout.spacing = 6f;
+            actionLayout.childAlignment = TextAnchor.MiddleCenter;
+            actionLayout.childControlWidth = true;
+            actionLayout.childControlHeight = true;
+            actionLayout.childForceExpandWidth = true;
+            actionLayout.childForceExpandHeight = false;
+            CreateEvidenceActionButton(
+                "Btn_ViewDetail",
+                actionRow,
+                font,
+                "查看资料详情",
+                "▣");
+            CreateEvidenceActionButton(
+                "Btn_CollectEvidence",
+                actionRow,
+                font,
+                "收集此资料",
+                "↓");
+            actionRow.gameObject.SetActive(false);
+
+            return bodyText;
+        }
+
+        private static void CreateEvidenceDetailOverlay(
+            RectTransform root,
+            TMP_FontAsset font,
+            out GameObject detailOverlay,
+            out TMP_Text detailTitleText,
+            out TMP_Text detailBodyText,
+            out Button detailCloseButton)
+        {
+            RectTransform overlay = CreateImage(
+                "EvidenceDetailOverlay",
+                root,
+                new Color(0f, 0f, 0f, 0.76f),
+                Vector2.zero,
+                Vector2.one);
+            detailOverlay = overlay.gameObject;
+            overlay.gameObject.SetActive(false);
+
+            RectTransform card = CreateImage(
+                "EvidenceDetailCard",
+                overlay,
+                Hex("D5D5D5"),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(760f, 560f),
+                Vector2.zero);
+            Outline outline = card.gameObject.AddComponent<Outline>();
+            outline.effectColor = Hex("EEEEEE");
+            outline.effectDistance = new Vector2(2f, -2f);
+
+            detailTitleText = CreateText(
+                "Txt_EvidenceDetailTitle",
+                card,
+                font,
+                "\u8d44\u659901",
+                28f,
+                FontStyles.Bold,
+                Hex("303030"),
+                TextAlignmentOptions.MidlineLeft,
+                new Vector2(0f, 1f),
+                Vector2.one,
+                new Vector2(28f, -70f),
+                new Vector2(-96f, -18f));
+
+            Button closeButton = CreateButton(
+                "Btn_CloseEvidenceDetail",
+                card,
+                font,
+                "\u00d7",
+                Hex("4A4A4A"),
+                Hex("666666"),
+                PrimaryText,
+                new Vector2(1f, 1f),
+                new Vector2(58f, 58f));
+            detailCloseButton = closeButton;
+            RectTransform closeRect = closeButton.GetComponent<RectTransform>();
+            closeRect.anchoredPosition = new Vector2(-42f, -38f);
+
+            RectTransform viewport = CreateImage(
+                "EvidenceDetailViewport",
+                card,
+                new Color(0f, 0f, 0f, 0f),
+                Vector2.zero,
+                Vector2.one);
+            viewport.offsetMin = new Vector2(30f, 34f);
+            viewport.offsetMax = new Vector2(-30f, -94f);
+            viewport.gameObject.AddComponent<RectMask2D>();
+
+            RectTransform content = CreateRect(
+                "EvidenceDetailContent",
+                viewport,
+                new Vector2(0f, 1f),
+                new Vector2(1f, 1f),
+                Vector2.zero,
+                Vector2.zero);
+            content.pivot = new Vector2(0.5f, 1f);
+            ContentSizeFitter fitter = content.gameObject.AddComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            TextMeshProUGUI bodyText = CreateText(
+                "Txt_EvidenceDetailBody",
+                content,
+                font,
+                "\u8d44\u6599\u8be6\u60c5",
+                22f,
+                FontStyles.Bold,
+                Hex("3A3A3A"),
+                TextAlignmentOptions.TopLeft,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+            detailBodyText = bodyText;
+            bodyText.overflowMode = TextOverflowModes.Overflow;
+            bodyText.raycastTarget = false;
+            LayoutElement bodyLayout = bodyText.gameObject.AddComponent<LayoutElement>();
+            bodyLayout.minHeight = 420f;
+
+            ScrollRect scrollRect = card.gameObject.AddComponent<ScrollRect>();
+            scrollRect.viewport = viewport;
+            scrollRect.content = content;
+            scrollRect.horizontal = false;
+            scrollRect.vertical = true;
+            scrollRect.scrollSensitivity = 34f;
+            scrollRect.movementType = ScrollRect.MovementType.Clamped;
+        }
+
+        private static Button CreateEvidenceActionButton(
+            string name,
+            RectTransform parent,
+            TMP_FontAsset font,
+            string label,
+            string icon)
+        {
+            RectTransform rect = CreateImage(
+                name,
+                parent,
+                Hex("E6E6E6"),
+                new Vector2(0f, 0f),
+                Vector2.one,
+                new Vector2(0f, 30f),
+                Vector2.zero);
+            LayoutElement layout = rect.gameObject.AddComponent<LayoutElement>();
+            layout.preferredHeight = 30f;
+            Button button = rect.gameObject.AddComponent<Button>();
+            button.targetGraphic = rect.GetComponent<Image>();
+            CreateText(
+                "Txt_Label",
+                rect,
+                font,
+                label,
+                14f,
+                FontStyles.Bold,
+                Hex("5A5A5A"),
+                TextAlignmentOptions.MidlineLeft,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(12f, 0f),
+                new Vector2(-42f, 0f));
+            CreateText(
+                "Txt_Icon",
+                rect,
+                font,
+                icon,
+                22f,
+                FontStyles.Bold,
+                Hex("5A5A5A"),
+                TextAlignmentOptions.Center,
+                new Vector2(1f, 0f),
+                Vector2.one,
+                new Vector2(-42f, 0f),
+                Vector2.zero);
+            return button;
+        }
+
+        private static TMP_Text CreateHiddenInfoText(RectTransform parent, TMP_FontAsset font, string name)
+        {
+            RectTransform rect = CreateRect(
+                name + "Root",
+                parent,
+                Vector2.zero,
+                Vector2.zero,
+                Vector2.zero,
+                Vector2.zero);
+            rect.gameObject.SetActive(false);
+            return CreateText(
+                name,
+                rect,
+                font,
+                string.Empty,
+                12f,
+                FontStyles.Normal,
+                PrimaryText,
+                TextAlignmentOptions.TopLeft,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+        }
+
+        private static TMP_Text CreateStatusText(
+            RectTransform parent,
+            TMP_FontAsset font,
+            string label,
+            Vector2 anchorMin,
+            Vector2 anchorMax)
+        {
+            return CreateText(
+                "Txt_Status_" + label,
+                parent,
+                font,
+                label,
+                13f,
+                FontStyles.Bold,
+                Hex("646464"),
+                TextAlignmentOptions.MidlineLeft,
+                anchorMin,
+                anchorMax,
+                Vector2.zero,
+                Vector2.zero);
+        }
+
+        private static void CreateTitleCountdownBar(RectTransform desktop, TMP_FontAsset font)
+        {
+            RectTransform track = CreateImage(
+                "CountdownTrack",
+                desktop,
+                Hex("777777"),
+                new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f),
+                new Vector2(700f, 22f),
+                new Vector2(0f, -18f));
+
+            CreateImage(
+                "CountdownElapsed",
+                track,
+                Hex("E04D73"),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(220f, 14f),
+                new Vector2(111f, 0f));
+
+            CreateImage(
+                "CountdownTail",
+                track,
+                new Color(0.82f, 0.82f, 0.82f, 0.75f),
+                new Vector2(1f, 0.5f),
+                new Vector2(1f, 0.5f),
+                new Vector2(64f, 3f),
+                new Vector2(-34f, 0f));
+
+            CreateText(
+                "Txt_Countdown",
+                track,
+                font,
+                "T-72h",
+                18f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+        }
+
+        private static void CreateTitleCenterLogo(RectTransform desktop, TMP_FontAsset font)
+        {
+            RectTransform logoRoot = CreateRect(
+                "LogoGroup",
+                desktop,
+                new Vector2(0.5f, 0.58f),
+                new Vector2(0.5f, 0.58f),
+                Vector2.zero,
+                new Vector2(620f, 170f));
+
+            CreateLogoMark(logoRoot);
+            CreateText(
+                "Txt_MingBay",
+                logoRoot,
+                font,
+                "明 湾 通",
+                62f,
+                FontStyles.Bold,
+                new Color(0.72f, 0.72f, 0.72f, 0.34f),
+                TextAlignmentOptions.Center,
+                new Vector2(0f, 0.38f),
+                Vector2.one,
+                new Vector2(82f, 0f),
+                Vector2.zero);
+            CreateText(
+                "Txt_TerminalVersion",
+                logoRoot,
+                font,
+                "MWT-TERMINAL v2.7.1",
+                26f,
+                FontStyles.Bold,
+                new Color(0.72f, 0.72f, 0.72f, 0.28f),
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                new Vector2(1f, 0.42f),
+                new Vector2(82f, 0f),
+                Vector2.zero);
+        }
+
+        private static void CreateLogoMark(RectTransform logoRoot)
+        {
+            int[,] pattern =
+            {
+                {0, 1, 1, 1, 0},
+                {1, 0, 0, 0, 1},
+                {1, 0, 1, 0, 1},
+                {1, 0, 0, 0, 1},
+                {0, 1, 1, 1, 0}
+            };
+
+            RectTransform mark = CreateRect(
+                "LogoPixelMark",
+                logoRoot,
+                new Vector2(0f, 0.44f),
+                new Vector2(0f, 0.44f),
+                new Vector2(72f, 24f),
+                new Vector2(78f, 78f));
+
+            const float cell = 11f;
+            const float gap = 3f;
+            for (int row = 0; row < 5; row++)
+            {
+                for (int column = 0; column < 5; column++)
+                {
+                    if (pattern[row, column] == 0)
+                    {
+                        continue;
+                    }
+
+                    CreateImage(
+                        $"LogoCell_{column}_{row}",
+                        mark,
+                        new Color(0.72f, 0.72f, 0.72f, 0.28f),
+                        new Vector2(0f, 1f),
+                        new Vector2(0f, 1f),
+                        new Vector2(cell, cell),
+                        new Vector2(12f + column * (cell + gap), -12f - row * (cell + gap)));
+                }
+            }
+        }
+
+        private static void CreateMentorBubble(RectTransform desktop, TMP_FontAsset font)
+        {
+            RectTransform bubble = CreateImage(
+                "MentorBubble",
+                desktop,
+                Hex("D0D0D0"),
+                new Vector2(0f, 0f),
+                new Vector2(0f, 0f),
+                new Vector2(520f, 96f),
+                new Vector2(215f, 130f));
+
+            RectTransform avatar = CreateImage(
+                "MentorAvatar",
+                bubble,
+                Hex("242424"),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(66f, 66f),
+                new Vector2(48f, 0f));
+
+            CreateText(
+                "Txt_AvatarFace",
+                avatar,
+                font,
+                "A07",
+                16f,
+                FontStyles.Bold,
+                MutedText,
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                new Vector2(0f, 14f));
+            CreateText(
+                "Txt_AvatarName",
+                avatar,
+                font,
+                "KKK",
+                16f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Bottom,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                new Vector2(0f, -4f));
+            CreateText(
+                "Txt_MentorHint",
+                bubble,
+                font,
+                "先点击工单APP，查看今日任务",
+                20f,
+                FontStyles.Bold,
+                Hex("181818"),
+                TextAlignmentOptions.MidlineLeft,
+                new Vector2(0f, 0f),
+                Vector2.one,
+                new Vector2(110f, 0f),
+                new Vector2(-26f, 0f));
+        }
+
+        private static void CreateCustomCursor(RectTransform desktop, TMP_FontAsset font)
+        {
+            CreateText(
+                "Txt_CustomCursor",
+                desktop,
+                font,
+                "↖",
+                34f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Center,
+                new Vector2(0.72f, 0.36f),
+                new Vector2(0.72f, 0.36f),
+                new Vector2(-22f, -22f),
+                new Vector2(22f, 22f));
+        }
+
+        private static void CreateInputMethodWarning(RectTransform desktop, TMP_FontAsset font)
+        {
+            RectTransform inputPanel = CreateImage(
+                "InputMethod_A07Warning",
+                desktop,
+                Hex("8C8C8C"),
+                new Vector2(1f, 0f),
+                new Vector2(1f, 0f),
+                new Vector2(180f, 38f),
+                new Vector2(-114f, 112f));
+
+            Outline outline = inputPanel.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0.88f, 0.30f, 0.45f, 0.75f);
+            outline.effectDistance = new Vector2(1f, -1f);
+
+            CreateImage(
+                "AbnormalCaret",
+                inputPanel,
+                Hex("E04D73"),
+                new Vector2(1f, 0.5f),
+                new Vector2(1f, 0.5f),
+                new Vector2(14f, 3f),
+                new Vector2(-10f, 0f));
+            CreateText(
+                "Txt_InputState",
+                inputPanel,
+                font,
+                "中",
+                16f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.MidlineLeft,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(12f, 0f),
+                new Vector2(-12f, 0f));
+        }
+
+        private static void CreateWindowsGlyph(RectTransform taskbar)
+        {
+            RectTransform glyph = CreateRect(
+                "SystemGlyph",
+                taskbar,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(38f, 0f),
+                new Vector2(28f, 28f));
+
+            Color glyphColor = new Color(0.82f, 0.91f, 0.94f, 0.95f);
+            CreateImage("Pane01", glyph, glyphColor, new Vector2(0f, 0.52f), new Vector2(0.44f, 1f));
+            CreateImage("Pane02", glyph, glyphColor, new Vector2(0.52f, 0.52f), Vector2.one);
+            CreateImage("Pane03", glyph, glyphColor, Vector2.zero, new Vector2(0.44f, 0.44f));
+            CreateImage("Pane04", glyph, glyphColor, new Vector2(0.52f, 0f), new Vector2(1f, 0.44f));
+        }
+
+        private static Button CreateDesktopShortcutButton(
+            RectTransform parent,
+            TMP_FontAsset font,
+            string name,
+            string label,
+            Vector2 anchoredPosition,
+            bool interactable)
+        {
+            RectTransform shortcut = CreateRect(
+                name + "_Group",
+                parent,
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                anchoredPosition,
+                new Vector2(96f, 108f));
+
+            RectTransform iconBox = CreateImage(
+                name,
+                shortcut,
+                interactable ? Hex("303030") : Hex("8A8A8A"),
+                new Vector2(0.5f, 1f),
+                new Vector2(0.5f, 1f),
+                new Vector2(58f, 58f),
+                new Vector2(0f, -32f));
+
+            Outline outline = iconBox.gameObject.AddComponent<Outline>();
+            outline.effectColor = interactable
+                ? new Color(0.86f, 0.86f, 0.86f, 0.5f)
+                : new Color(0.86f, 0.86f, 0.86f, 0.18f);
+            outline.effectDistance = new Vector2(1f, -1f);
+
+            Button button = iconBox.gameObject.AddComponent<Button>();
+            button.targetGraphic = iconBox.GetComponent<Image>();
+            button.interactable = interactable;
+            ApplyDesktopButtonColors(button, interactable);
+
+            CreateText(
+                "Txt_Icon",
+                iconBox,
+                font,
+                "icon",
+                13f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+            CreateText(
+                "Txt_Label",
+                shortcut,
+                font,
+                label,
+                16f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Top,
+                Vector2.zero,
+                new Vector2(1f, 0.34f),
+                Vector2.zero,
+                Vector2.zero);
+
+            return button;
+        }
+
+        private static void ApplyDesktopButtonColors(Button button, bool interactable)
+        {
+            ColorBlock colors = button.colors;
+            colors.normalColor = interactable ? Hex("303030") : Hex("8A8A8A");
+            colors.highlightedColor = interactable ? Hex("464646") : Hex("8A8A8A");
+            colors.pressedColor = interactable ? Hex("5A5A5A") : Hex("8A8A8A");
+            colors.selectedColor = colors.highlightedColor;
+            colors.disabledColor = Hex("8A8A8A");
+            colors.colorMultiplier = 1f;
+            colors.fadeDuration = 0.08f;
+            button.colors = colors;
+        }
+
+        private static Button CreateTaskbarLabel(
+            RectTransform taskbar,
+            TMP_FontAsset font,
+            string objectName,
+            string label,
+            Vector2 position,
+            Color background)
+        {
+            RectTransform buttonRect = CreateImage(
+                objectName,
+                taskbar,
+                background,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(210f, 42f),
+                position);
+            Button button = buttonRect.gameObject.AddComponent<Button>();
+            button.targetGraphic = buttonRect.GetComponent<Image>();
+            ColorBlock colors = button.colors;
+            colors.normalColor = background;
+            colors.highlightedColor = Color.Lerp(background, Color.white, 0.2f);
+            colors.pressedColor = Color.Lerp(background, Color.black, 0.12f);
+            colors.selectedColor = colors.highlightedColor;
+            colors.disabledColor = new Color(background.r, background.g, background.b, 0.35f);
+            colors.colorMultiplier = 1f;
+            colors.fadeDuration = 0.08f;
+            button.colors = colors;
+
+            RectTransform miniIcon = CreateImage(
+                "MiniIcon",
+                buttonRect,
+                Hex("EFEFEF"),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(28f, 28f),
+                new Vector2(22f, 0f));
+            CreateText(
+                "Txt_MiniIcon",
+                miniIcon,
+                font,
+                "icon",
+                8f,
+                FontStyles.Bold,
+                Hex("202020"),
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+            CreateText(
+                "Txt_Label",
+                buttonRect,
+                font,
+                label,
+                14f,
+                FontStyles.Bold,
+                Hex("222222"),
+                TextAlignmentOptions.MidlineLeft,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(58f, 0f),
+                new Vector2(-8f, 0f));
+
+            return button;
+        }
+
+        private static void CreateRiskIndicator(RectTransform taskbar, TMP_FontAsset font)
+        {
+            RectTransform risk = CreateRect(
+                "A07RiskIndicator",
+                taskbar,
+                new Vector2(1f, 0.5f),
+                new Vector2(1f, 0.5f),
+                new Vector2(-330f, 0f),
+                new Vector2(250f, 46f));
+            CreateImage(
+                "WarningIcon",
+                risk,
+                Hex("F08B91"),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(30f, 30f),
+                new Vector2(15f, 0f));
+            CreateText(
+                "Txt_Risk",
+                risk,
+                font,
+                "A07 异常指示",
+                13f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.TopLeft,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(48f, 2f),
+                Vector2.zero);
+            RectTransform track = CreateImage(
+                "RiskTrack",
+                risk,
+                Hex("2F2F2F"),
+                new Vector2(0f, 0f),
+                new Vector2(0f, 0f),
+                new Vector2(136f, 10f),
+                new Vector2(118f, 11f));
+            for (int index = 0; index < 11; index++)
+            {
+                CreateImage(
+                    "RiskSegment_" + index,
+                    track,
+                    index < 8 ? Hex("E04D73") : Hex("747474"),
+                    new Vector2(0f, 0.5f),
+                    new Vector2(0f, 0.5f),
+                    new Vector2(8f, 10f),
+                    new Vector2(6f + index * 11f, 0f));
+            }
+        }
+
+        private static void CreateClock(RectTransform taskbar, TMP_FontAsset font)
+        {
+            RectTransform clock = CreateImage(
+                "ClockPanel",
+                taskbar,
+                Hex("3B3B3B"),
+                new Vector2(1f, 0.5f),
+                new Vector2(1f, 0.5f),
+                new Vector2(144f, 42f),
+                new Vector2(-92f, 0f));
+            CreateText(
+                "Txt_Clock",
+                clock,
+                font,
+                "下午9:10",
+                16f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                new Vector2(0f, 7f));
         }
 
         private static void CreateTopBar(
@@ -1522,11 +3718,313 @@ namespace MingBay.Editor
                 new Vector2(250f, 62f));
         }
 
+        private static void CreateNotebookPanel(
+            RectTransform root,
+            TMP_FontAsset font,
+            out GameObject notebookPanel,
+            out TMP_Text notebookReasonText,
+            out TMP_Text notebookUserText,
+            out TMP_Text notebookEmotionText,
+            out TMP_Text notebookRegionText,
+            out TMP_Text notebookTicketIdText,
+            out Button[] notebookEvidenceButtons,
+            out TMP_Text[] notebookEvidenceTexts,
+            out Outline[] notebookEvidenceOutlines,
+            out Button notebookCloseButton,
+            out Button notebookCancelButton,
+            out Button notebookSubmitButton)
+        {
+            RectTransform overlay = CreateImage(
+                "NotebookPanel",
+                root,
+                new Color(0f, 0f, 0f, 0.72f),
+                Vector2.zero,
+                Vector2.one);
+            notebookPanel = overlay.gameObject;
+
+            notebookCloseButton = CreateButton(
+                "Btn_NotebookClose",
+                overlay,
+                font,
+                "×",
+                new Color(0f, 0f, 0f, 0f),
+                new Color(1f, 1f, 1f, 0.12f),
+                PrimaryText,
+                new Vector2(0.96f, 0.92f),
+                new Vector2(64f, 64f));
+
+            RectTransform book = CreateRect(
+                "NotebookBook",
+                overlay,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                Vector2.zero,
+                new Vector2(1100f, 660f));
+
+            RectTransform leftPage = CreateImage(
+                "NotebookLeftPage",
+                book,
+                Hex("BDBDBD"),
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(512f, 620f),
+                new Vector2(256f, 0f));
+            Outline leftOutline = leftPage.gameObject.AddComponent<Outline>();
+            leftOutline.effectColor = new Color(0f, 0f, 0f, 0.34f);
+            leftOutline.effectDistance = new Vector2(2f, -2f);
+
+            RectTransform rightPage = CreateImage(
+                "NotebookRightPage",
+                book,
+                Hex("C7C7C7"),
+                new Vector2(1f, 0.5f),
+                new Vector2(1f, 0.5f),
+                new Vector2(512f, 620f),
+                new Vector2(-256f, 0f));
+            Outline rightOutline = rightPage.gameObject.AddComponent<Outline>();
+            rightOutline.effectColor = new Color(0f, 0f, 0f, 0.34f);
+            rightOutline.effectDistance = new Vector2(2f, -2f);
+
+            RectTransform spine = CreateImage(
+                "NotebookSpine",
+                book,
+                Hex("222222"),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(0.5f, 0.5f),
+                new Vector2(46f, 622f),
+                Vector2.zero);
+            for (int index = 0; index < 18; index++)
+            {
+                CreateImage(
+                    $"Spiral_{index:00}",
+                    spine,
+                    Hex("0E0E0E"),
+                    new Vector2(0.5f, 1f),
+                    new Vector2(0.5f, 1f),
+                    new Vector2(38f, 10f),
+                    new Vector2(0f, -20f - index * 34f));
+            }
+
+            RectTransform avatar = CreateImage(
+                "NotebookUserIcon",
+                leftPage,
+                Hex("6E7B7B"),
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(118f, 118f),
+                new Vector2(106f, -92f));
+            CreateText(
+                "Txt_NotebookUserIcon",
+                avatar,
+                font,
+                "icon",
+                22f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+
+            notebookReasonText = CreateText(
+                "Txt_NotebookReason",
+                leftPage,
+                font,
+                "工单原因：--",
+                19f,
+                FontStyles.Bold,
+                Hex("222222"),
+                TextAlignmentOptions.TopLeft,
+                new Vector2(0f, 0f),
+                Vector2.one,
+                new Vector2(54f, 280f),
+                new Vector2(-42f, -210f));
+            notebookUserText = CreateNotebookInfoText(
+                "Txt_NotebookUser",
+                leftPage,
+                font,
+                "用户：--",
+                new Vector2(54f, 218f));
+            notebookEmotionText = CreateNotebookInfoText(
+                "Txt_NotebookEmotion",
+                leftPage,
+                font,
+                "用户情绪：--",
+                new Vector2(54f, 178f));
+            notebookRegionText = CreateNotebookInfoText(
+                "Txt_NotebookRegion",
+                leftPage,
+                font,
+                "区域：--",
+                new Vector2(54f, 138f));
+            notebookTicketIdText = CreateText(
+                "Txt_NotebookTicketId",
+                leftPage,
+                font,
+                "#T_---",
+                18f,
+                FontStyles.Bold,
+                Hex("4B4B4B"),
+                TextAlignmentOptions.BottomRight,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(40f, 40f),
+                new Vector2(-46f, -40f));
+
+            CreateText(
+                "Txt_NotebookEvidenceTitle",
+                rightPage,
+                font,
+                "请选择出示你认为与AI处理意见\n相悖的证据",
+                22f,
+                FontStyles.Bold,
+                Hex("303030"),
+                TextAlignmentOptions.Center,
+                new Vector2(0f, 1f),
+                Vector2.one,
+                new Vector2(48f, -118f),
+                new Vector2(-48f, -30f));
+
+            notebookEvidenceButtons = new Button[4];
+            notebookEvidenceTexts = new TMP_Text[4];
+            notebookEvidenceOutlines = new Outline[4];
+            Vector2[] evidencePositions =
+            {
+                new(150f, -230f),
+                new(368f, -230f),
+                new(150f, -376f),
+                new(368f, -376f)
+            };
+            for (int index = 0; index < notebookEvidenceButtons.Length; index++)
+            {
+                CreateNotebookEvidenceButton(
+                    rightPage,
+                    font,
+                    index,
+                    evidencePositions[index],
+                    out notebookEvidenceButtons[index],
+                    out notebookEvidenceTexts[index],
+                    out notebookEvidenceOutlines[index]);
+            }
+
+            notebookCancelButton = CreateButton(
+                "Btn_NotebookCancel",
+                rightPage,
+                font,
+                "我再想想",
+                Hex("F3B13D"),
+                Hex("FFC861"),
+                PrimaryText,
+                new Vector2(0.35f, 0f),
+                new Vector2(150f, 78f));
+            notebookCancelButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, 82f);
+
+            notebookSubmitButton = CreateButton(
+                "Btn_NotebookSubmit",
+                rightPage,
+                font,
+                "提交证据",
+                Hex("FF4E4E"),
+                Hex("FF6D6D"),
+                PrimaryText,
+                new Vector2(0.68f, 0f),
+                new Vector2(210f, 78f));
+            notebookSubmitButton.GetComponent<RectTransform>().anchoredPosition = new Vector2(0f, 82f);
+            notebookPanel.SetActive(false);
+        }
+
+        private static TMP_Text CreateNotebookInfoText(
+            string name,
+            RectTransform parent,
+            TMP_FontAsset font,
+            string content,
+            Vector2 anchoredPosition)
+        {
+            RectTransform rect = CreateRect(
+                name,
+                parent,
+                new Vector2(0f, 0f),
+                new Vector2(0f, 0f),
+                anchoredPosition,
+                new Vector2(360f, 34f));
+            rect.pivot = new Vector2(0f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+
+            TextMeshProUGUI text = rect.gameObject.AddComponent<TextMeshProUGUI>();
+            text.font = font;
+            text.text = content;
+            text.fontSize = 18f;
+            text.fontStyle = FontStyles.Bold;
+            text.color = Hex("242424");
+            text.alignment = TextAlignmentOptions.MidlineLeft;
+            text.textWrappingMode = TextWrappingModes.Normal;
+            text.raycastTarget = false;
+            text.overflowMode = TextOverflowModes.Truncate;
+            return text;
+        }
+
+        private static void CreateNotebookEvidenceButton(
+            RectTransform parent,
+            TMP_FontAsset font,
+            int evidenceIndex,
+            Vector2 anchoredPosition,
+            out Button button,
+            out TMP_Text label,
+            out Outline outline)
+        {
+            RectTransform rect = CreateImage(
+                $"Btn_NotebookEvidence_{evidenceIndex:00}",
+                parent,
+                Hex("EFEFEF"),
+                new Vector2(0f, 1f),
+                new Vector2(0f, 1f),
+                new Vector2(188f, 118f),
+                anchoredPosition);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+
+            outline = rect.gameObject.AddComponent<Outline>();
+            outline.effectColor = Hex("40E870");
+            outline.effectDistance = new Vector2(4f, -4f);
+            outline.enabled = false;
+
+            button = rect.gameObject.AddComponent<Button>();
+            button.targetGraphic = rect.GetComponent<Image>();
+            ColorBlock colors = button.colors;
+            colors.normalColor = Hex("EFEFEF");
+            colors.highlightedColor = Hex("FFFFFF");
+            colors.pressedColor = Hex("D8F6DF");
+            colors.selectedColor = colors.highlightedColor;
+            colors.disabledColor = new Color(0.76f, 0.76f, 0.76f, 0.28f);
+            colors.colorMultiplier = 1f;
+            colors.fadeDuration = 0.08f;
+            button.colors = colors;
+
+            label = CreateText(
+                $"Txt_NotebookEvidence_{evidenceIndex:00}",
+                rect,
+                font,
+                $"资料{evidenceIndex + 1:00}：--",
+                14f,
+                FontStyles.Bold,
+                Hex("333333"),
+                TextAlignmentOptions.TopLeft,
+                Vector2.zero,
+                Vector2.one,
+                new Vector2(14f, 12f),
+                new Vector2(-12f, -10f));
+            label.enableAutoSizing = true;
+            label.fontSizeMin = 9f;
+            label.fontSizeMax = 14f;
+            label.overflowMode = TextOverflowModes.Truncate;
+        }
+
         private static void CreateResultPanel(
             RectTransform root,
             TMP_FontAsset font,
             out GameObject resultPanel,
             out TMP_Text resultTitleText,
+            out TMP_Text resultStatusText,
             out TMP_Text resultDescriptionText,
             out TMP_Text resultMetricsText,
             out Button resultActionButton)
@@ -1534,24 +4032,51 @@ namespace MingBay.Editor
             RectTransform overlay = CreateImage(
                 "ResultPanel",
                 root,
-                new Color(0.08f, 0.08f, 0.08f, 0.94f),
+                new Color(0f, 0f, 0f, 0.72f),
                 Vector2.zero,
                 Vector2.one);
             resultPanel = overlay.gameObject;
 
+            resultActionButton = CreateButton(
+                "Btn_ResultOverlayClose",
+                overlay,
+                font,
+                "点击任意空白位置关闭",
+                new Color(0f, 0f, 0f, 0f),
+                new Color(1f, 1f, 1f, 0.02f),
+                PrimaryText,
+                new Vector2(0.5f, 0.5f),
+                new Vector2(1920f, 1080f));
+            RectTransform closeButtonRect = resultActionButton.GetComponent<RectTransform>();
+            closeButtonRect.anchorMin = Vector2.zero;
+            closeButtonRect.anchorMax = Vector2.one;
+            closeButtonRect.offsetMin = Vector2.zero;
+            closeButtonRect.offsetMax = Vector2.zero;
+            TMP_Text closeTip = resultActionButton.GetComponentInChildren<TMP_Text>(true);
+            if (closeTip != null)
+            {
+                RectTransform closeTipRect = closeTip.GetComponent<RectTransform>();
+                closeTipRect.anchorMin = new Vector2(0.35f, 0.08f);
+                closeTipRect.anchorMax = new Vector2(0.65f, 0.16f);
+                closeTipRect.offsetMin = Vector2.zero;
+                closeTipRect.offsetMax = Vector2.zero;
+                closeTip.fontSize = 22f;
+                closeTip.alignment = TextAlignmentOptions.Center;
+            }
+
             RectTransform card = CreatePanel(
                 "ResultCard",
                 overlay,
-                new Vector2(0.33f, 0.23f),
-                new Vector2(0.67f, 0.77f));
-            card.gameObject.GetComponent<Image>().color = Panel;
+                new Vector2(0.33f, 0.46f),
+                new Vector2(0.67f, 0.88f));
+            card.gameObject.GetComponent<Image>().color = Hex("333333");
 
             CreateImage(
                 "ResultIconPlaceholder",
                 card,
-                Accent,
-                new Vector2(0.5f, 0.8f),
-                new Vector2(0.5f, 0.8f),
+                Hex("BDBDBD"),
+                new Vector2(0.5f, 0.7f),
+                new Vector2(0.5f, 0.7f),
                 new Vector2(74f, 74f),
                 Vector2.zero);
 
@@ -1559,13 +4084,27 @@ namespace MingBay.Editor
                 "Txt_ResultTitle",
                 card,
                 font,
-                "处理完成",
+                "提交成功",
+                24f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Center,
+                new Vector2(0.12f, 0.78f),
+                new Vector2(0.88f, 0.9f),
+                Vector2.zero,
+                Vector2.zero);
+
+            resultStatusText = CreateText(
+                "Txt_ResultStatus",
+                card,
+                font,
+                "工单已关闭",
                 34f,
                 FontStyles.Bold,
                 PrimaryText,
                 TextAlignmentOptions.Center,
-                new Vector2(0.05f, 0.61f),
-                new Vector2(0.95f, 0.75f),
+                new Vector2(0.12f, 0.47f),
+                new Vector2(0.88f, 0.61f),
                 Vector2.zero,
                 Vector2.zero);
 
@@ -1573,13 +4112,13 @@ namespace MingBay.Editor
                 "Txt_ResultDescription",
                 card,
                 font,
-                "结果说明占位",
-                19f,
-                FontStyles.Normal,
+                "工单已计入 AI 解决表，实际用户会再收到本次问题的后续回复。",
+                16f,
+                FontStyles.Bold,
                 MutedText,
-                TextAlignmentOptions.Top,
-                new Vector2(0.09f, 0.37f),
-                new Vector2(0.91f, 0.6f),
+                TextAlignmentOptions.Center,
+                new Vector2(0.1f, 0.34f),
+                new Vector2(0.9f, 0.45f),
                 Vector2.zero,
                 Vector2.zero);
 
@@ -1587,31 +4126,69 @@ namespace MingBay.Editor
                 "Txt_ResultMetrics",
                 card,
                 font,
-                "证据数量：0\n已解决数量：0",
-                17f,
+                "A07风险值+0\n已解决数量：1\n本次证据记录：无",
+                16f,
                 FontStyles.Bold,
-                Warning,
+                PrimaryText,
                 TextAlignmentOptions.Center,
-                new Vector2(0.15f, 0.21f),
-                new Vector2(0.85f, 0.37f),
+                new Vector2(0.2f, 0.1f),
+                new Vector2(0.8f, 0.28f),
                 Vector2.zero,
                 Vector2.zero);
 
-            resultActionButton = CreateButton(
-                "Btn_ResultAction",
-                card,
+            RectTransform saveStatus = CreateRect(
+                "ResultSaveStatus",
+                overlay,
+                new Vector2(1f, 0f),
+                new Vector2(1f, 0f),
+                new Vector2(-230f, 72f),
+                new Vector2(360f, 80f));
+            RectTransform saveIcon = CreateImage(
+                "SaveStatusIcon",
+                saveStatus,
+                PrimaryText,
+                new Vector2(0f, 0.5f),
+                new Vector2(0f, 0.5f),
+                new Vector2(60f, 60f),
+                new Vector2(30f, 0f));
+            saveIcon.gameObject.AddComponent<Mask>().showMaskGraphic = true;
+            CreateText(
+                "Txt_SaveIcon",
+                saveIcon,
                 font,
-                "返回工单列表",
-                Accent,
-                AccentHover,
-                Background,
-                new Vector2(0.5f, 0.12f),
-                new Vector2(320f, 64f));
+                "✓",
+                38f,
+                FontStyles.Bold,
+                Hex("111111"),
+                TextAlignmentOptions.Center,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+            CreateText(
+                "Txt_SaveStatus",
+                saveStatus,
+                font,
+                "关卡进度已保存",
+                30f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.MidlineLeft,
+                new Vector2(0f, 0f),
+                Vector2.one,
+                new Vector2(80f, 0f),
+                Vector2.zero);
             resultPanel.SetActive(false);
         }
 
         private static void BindView(
             MainGameView view,
+            GameObject ticketAppWindow,
+            Button ticketAppCloseButton,
+            Button workAppButton,
+            Button clueNotebookButton,
+            Button taskbarWorkQueueButton,
+            Button taskbarDatabaseButton,
             RectTransform queueContent,
             TicketQueueItemView queueItemTemplate,
             GameObject[] ticketContentObjects,
@@ -1621,24 +4198,56 @@ namespace MingBay.Editor
             TMP_Text resolvedText,
             TMP_Text titleText,
             TMP_Text metaText,
+            TMP_Text ticketIdText,
             TMP_Text userMessageText,
             TMP_Text aiReplyText,
+            ScrollRect chatScrollRect,
+            RectTransform chatContent,
+            GameObject chatBubbleTemplate,
+            GameObject chatEmptyState,
             GameObject dataPanel,
+            ScrollRect dataScrollRect,
             TMP_Text profileText,
             TMP_Text historyText,
             TMP_Text deviceLogText,
             TMP_Text regionStatusText,
+            GameObject evidenceDetailOverlay,
+            TMP_Text evidenceDetailTitleText,
+            TMP_Text evidenceDetailBodyText,
+            Button evidenceDetailCloseButton,
             Button primaryActionButton,
+            Button dataLookupButton,
             Button transferHumanButton,
             Button saveEvidenceButton,
             Button markResolvedButton,
+            Image markResolvedHoldFill,
+            Button chatEvidenceActionButton,
+            GameObject notebookPanel,
+            TMP_Text notebookReasonText,
+            TMP_Text notebookUserText,
+            TMP_Text notebookEmotionText,
+            TMP_Text notebookRegionText,
+            TMP_Text notebookTicketIdText,
+            Button[] notebookEvidenceButtons,
+            TMP_Text[] notebookEvidenceTexts,
+            Outline[] notebookEvidenceOutlines,
+            Button notebookCloseButton,
+            Button notebookCancelButton,
+            Button notebookSubmitButton,
             GameObject resultPanel,
             TMP_Text resultTitleText,
+            TMP_Text resultStatusText,
             TMP_Text resultDescriptionText,
             TMP_Text resultMetricsText,
             Button resultActionButton)
         {
             SerializedObject serializedView = new(view);
+            SetObject(serializedView, "ticketAppWindow", ticketAppWindow);
+            SetObject(serializedView, "ticketAppCloseButton", ticketAppCloseButton);
+            SetObject(serializedView, "workAppButton", workAppButton);
+            SetObject(serializedView, "clueNotebookButton", clueNotebookButton);
+            SetObject(serializedView, "taskbarWorkQueueButton", taskbarWorkQueueButton);
+            SetObject(serializedView, "taskbarDatabaseButton", taskbarDatabaseButton);
             SetObject(serializedView, "ticketQueueContent", queueContent);
             SetObject(serializedView, "ticketQueueItemTemplate", queueItemTemplate);
             SerializedProperty contentObjects = serializedView.FindProperty("ticketContentObjects");
@@ -1654,28 +4263,55 @@ namespace MingBay.Editor
             SetObject(serializedView, "resolvedCountText", resolvedText);
             SetObject(serializedView, "ticketTitleText", titleText);
             SetObject(serializedView, "ticketMetaText", metaText);
+            SetObject(serializedView, "ticketIdText", ticketIdText);
             SetObject(serializedView, "userMessageText", userMessageText);
             SetObject(serializedView, "aiReplyText", aiReplyText);
+            SetObject(serializedView, "chatScrollRect", chatScrollRect);
+            SetObject(serializedView, "chatContent", chatContent);
+            SetObject(serializedView, "chatBubbleTemplate", chatBubbleTemplate);
+            SetObject(serializedView, "chatEmptyState", chatEmptyState);
             SetObject(serializedView, "dataPanel", dataPanel);
+            SetObject(serializedView, "dataScrollRect", dataScrollRect);
             SetObject(serializedView, "profileText", profileText);
             SetObject(serializedView, "historyText", historyText);
             SetObject(serializedView, "deviceLogText", deviceLogText);
             SetObject(serializedView, "regionStatusText", regionStatusText);
+            SetObject(serializedView, "evidenceDetailOverlay", evidenceDetailOverlay);
+            SetObject(serializedView, "evidenceDetailTitleText", evidenceDetailTitleText);
+            SetObject(serializedView, "evidenceDetailBodyText", evidenceDetailBodyText);
+            SetObject(serializedView, "evidenceDetailCloseButton", evidenceDetailCloseButton);
             SetObject(serializedView, "primaryActionButton", primaryActionButton);
+            SetObject(serializedView, "dataLookupButton", dataLookupButton);
             SetObject(serializedView, "transferHumanButton", transferHumanButton);
             SetObject(serializedView, "saveEvidenceButton", saveEvidenceButton);
             SetObject(serializedView, "markResolvedButton", markResolvedButton);
+            SetObject(serializedView, "markResolvedHoldFill", markResolvedHoldFill);
+            SetObject(serializedView, "chatEvidenceActionButton", chatEvidenceActionButton);
+            SetObject(serializedView, "notebookPanel", notebookPanel);
+            SetObject(serializedView, "notebookReasonText", notebookReasonText);
+            SetObject(serializedView, "notebookUserText", notebookUserText);
+            SetObject(serializedView, "notebookEmotionText", notebookEmotionText);
+            SetObject(serializedView, "notebookRegionText", notebookRegionText);
+            SetObject(serializedView, "notebookTicketIdText", notebookTicketIdText);
+            SetObjectArray(serializedView, "notebookEvidenceButtons", notebookEvidenceButtons);
+            SetObjectArray(serializedView, "notebookEvidenceTexts", notebookEvidenceTexts);
+            SetObjectArray(serializedView, "notebookEvidenceOutlines", notebookEvidenceOutlines);
+            SetObject(serializedView, "notebookCloseButton", notebookCloseButton);
+            SetObject(serializedView, "notebookCancelButton", notebookCancelButton);
+            SetObject(serializedView, "notebookSubmitButton", notebookSubmitButton);
             SetObject(serializedView, "resultPanel", resultPanel);
             SetObject(serializedView, "resultTitleText", resultTitleText);
+            SetObject(serializedView, "resultStatusText", resultStatusText);
             SetObject(serializedView, "resultDescriptionText", resultDescriptionText);
             SetObject(serializedView, "resultMetricsText", resultMetricsText);
             SetObject(serializedView, "resultActionButton", resultActionButton);
+            serializedView.FindProperty("popupDelayAfterDialogueSeconds").floatValue = 0.35f;
             serializedView.ApplyModifiedPropertiesWithoutUndo();
         }
 
         private static void BindFlowManager(
             GameFlowManager flowManager,
-            DemoDatabase database,
+            MingBayProjectDatabase database,
             EvidenceManager evidenceManager,
             MetricManager metricManager,
             MainGameView view)
@@ -1685,6 +4321,8 @@ namespace MingBay.Editor
             SetObject(serializedFlow, "evidenceManager", evidenceManager);
             SetObject(serializedFlow, "metricManager", metricManager);
             SetObject(serializedFlow, "mainGameView", view);
+            SetStringArray(serializedFlow, "stageOrder", CurrentSpreadsheetLevelId);
+            SetStringArray(serializedFlow, "stageDisplayNames", CurrentSpreadsheetLevelName);
             serializedFlow.FindProperty("titleSceneName").stringValue = "TitleScene";
             serializedFlow.ApplyModifiedPropertiesWithoutUndo();
         }
@@ -1885,6 +4523,19 @@ namespace MingBay.Editor
             target.FindProperty(propertyName).objectReferenceValue = value;
         }
 
+        private static void SetObjectArray(
+            SerializedObject target,
+            string propertyName,
+            UnityEngine.Object[] values)
+        {
+            SerializedProperty property = target.FindProperty(propertyName);
+            property.arraySize = values.Length;
+            for (int index = 0; index < values.Length; index++)
+            {
+                property.GetArrayElementAtIndex(index).objectReferenceValue = values[index];
+            }
+        }
+
         private static void SetString(SerializedObject target, string propertyName, string value)
         {
             target.FindProperty(propertyName).stringValue = value;
@@ -1900,6 +4551,24 @@ namespace MingBay.Editor
             for (int index = 0; index < values.Length; index++)
             {
                 property.GetArrayElementAtIndex(index).stringValue = values[index];
+            }
+        }
+
+        private static void SetDialogueLineArray(
+            SerializedObject target,
+            string propertyName,
+            TicketDialogueLine[] values)
+        {
+            SerializedProperty property = target.FindProperty(propertyName);
+            int count = values != null ? values.Length : 0;
+            property.arraySize = count;
+            for (int index = 0; index < count; index++)
+            {
+                SerializedProperty element = property.GetArrayElementAtIndex(index);
+                element.FindPropertyRelative("speakerId").stringValue = values[index].SpeakerId;
+                element.FindPropertyRelative("speakerLabel").stringValue = values[index].SpeakerLabel;
+                element.FindPropertyRelative("text").stringValue = values[index].Text;
+                element.FindPropertyRelative("fromUser").boolValue = values[index].FromUser;
             }
         }
 

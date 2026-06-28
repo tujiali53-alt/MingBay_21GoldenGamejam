@@ -35,21 +35,22 @@ namespace MingBay.UI
         [SerializeField]
         [InspectorName("普通背景")]
         [Tooltip("尚未选择的待处理工单背景色。")]
-        private Color normalColor = new(0.29f, 0.29f, 0.29f, 1f);
+        private Color normalColor = new(0.84f, 0.84f, 0.84f, 1f);
 
         [SerializeField]
         [InspectorName("选中背景")]
         [Tooltip("当前正在查看的工单背景色。")]
-        private Color selectedColor = new(0.5f, 0.5f, 0.5f, 1f);
+        private Color selectedColor = new(0.72f, 0.88f, 0.8f, 1f);
 
         [SerializeField]
         [InspectorName("已处理背景")]
         [Tooltip("已经完成处置的工单背景色。")]
-        private Color processedColor = new(0.2f, 0.2f, 0.2f, 1f);
+        private Color processedColor = new(0.42f, 0.42f, 0.42f, 1f);
 
         private int ticketIndex;
         private string ticketId;
         private string issueType;
+        private string userName;
         private Action<int> clickHandler;
 
         /// <summary>
@@ -71,6 +72,7 @@ namespace MingBay.UI
             ticketIndex = index;
             ticketId = ticket.TicketId;
             issueType = ticket.IssueType;
+            userName = ticket.UserName;
             clickHandler = onClicked;
 
             button.onClick.RemoveListener(NotifyClicked);
@@ -84,18 +86,22 @@ namespace MingBay.UI
         public void SetState(bool isSelected, bool isProcessed)
         {
             button.interactable = !isProcessed;
+            summaryText.enableAutoSizing = false;
+            summaryText.fontSize = 16f;
 
             if (isProcessed)
             {
                 backgroundImage.color = processedColor;
-                summaryText.text = $"{ticketId}\n{issueType} · 已处理";
+                summaryText.color = new Color(0.72f, 0.72f, 0.72f, 1f);
+                summaryText.text = $"#{ticketId}\n{issueType}\n{userName}·6-24    已解决";
                 return;
             }
 
             backgroundImage.color = isSelected ? selectedColor : normalColor;
+            summaryText.color = new Color(0.16f, 0.16f, 0.16f, 1f);
             summaryText.text = isSelected
-                ? $"{ticketId}\n{issueType} · 查看中"
-                : $"{ticketId}\n{issueType}";
+                ? $"#{ticketId}\n{issueType}\n{userName}·6-24    选中"
+                : $"#{ticketId}\n{issueType}\n{userName}·6-24";
         }
 
         private void OnDestroy()

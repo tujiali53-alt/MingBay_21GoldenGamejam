@@ -18,7 +18,7 @@ namespace MingBay.Core
         [SerializeField]
         [InspectorName("Demo 数据库")]
         [Tooltip("包含本次 Demo 工单顺序的数据资产。策划调整工单时修改该资产即可。")]
-        private DemoDatabase database;
+        private MingBayProjectDatabase database;
 
         [Header("场景对象")]
         [SerializeField]
@@ -40,12 +40,12 @@ namespace MingBay.Core
         [SerializeField]
         [InspectorName("阶段顺序")]
         [Tooltip("按游戏实际推进顺序填写阶段 ID。默认先教程，再进入第一天正式值班。")]
-        private string[] stageOrder = { "Stage_Tutorial", "Stage_Day1" };
+        private string[] stageOrder = { "N1" };
 
         [SerializeField]
         [InspectorName("阶段显示名称")]
         [Tooltip("与阶段顺序一一对应，用于顶部状态和阶段完成按钮。")]
-        private string[] stageDisplayNames = { "教程关卡", "第一天正式值班" };
+        private string[] stageDisplayNames = { "第一夜" };
 
         [Header("场景配置")]
         [SerializeField]
@@ -63,7 +63,9 @@ namespace MingBay.Core
         private bool isSceneLoading;
         private int selectedEvidenceIndex = -1;
         private int retainedEvidenceIndex = -1;
+        private readonly HashSet<int> retainedEvidenceIndices = new();
         private int currentFollowUpIndex;
+        private bool transferAppliedForCurrentTicket;
         private string pendingResultTitle;
         private string pendingResultText;
         private bool pendingEvidenceSaved;
@@ -96,6 +98,7 @@ namespace MingBay.Core
             mainGameView.SaveEvidenceRequested += HandleSaveEvidenceRequested;
             mainGameView.ChatEvidenceActionRequested += HandleChatEvidenceActionRequested;
             mainGameView.EvidenceSelected += HandleEvidenceSelected;
+            mainGameView.NotebookCancelRequested += HandleNotebookCancelRequested;
             mainGameView.MarkResolvedRequested += HandleMarkResolvedRequested;
             mainGameView.ResultActionRequested += HandleResultActionRequested;
         }
@@ -114,6 +117,7 @@ namespace MingBay.Core
             mainGameView.SaveEvidenceRequested -= HandleSaveEvidenceRequested;
             mainGameView.ChatEvidenceActionRequested -= HandleChatEvidenceActionRequested;
             mainGameView.EvidenceSelected -= HandleEvidenceSelected;
+            mainGameView.NotebookCancelRequested -= HandleNotebookCancelRequested;
             mainGameView.MarkResolvedRequested -= HandleMarkResolvedRequested;
             mainGameView.ResultActionRequested -= HandleResultActionRequested;
         }
@@ -168,11 +172,12 @@ namespace MingBay.Core
         /// </summary>
         private bool LoadNextStage()
         {
-            while (++currentStageIndex < stageOrder.Length)
+            string[] configuredStageOrder = GetConfiguredStageOrder();
+            while (++currentStageIndex < configuredStageOrder.Length)
             {
                 currentStageTickets.Clear();
                 currentStageTickets.AddRange(
-                    database.GetTicketsByStage(stageOrder[currentStageIndex]));
+                    database.GetTicketsByStage(configuredStageOrder[currentStageIndex]));
 
                 if (currentStageTickets.Count == 0)
                 {
@@ -235,7 +240,9 @@ namespace MingBay.Core
 
             selectedEvidenceIndex = -1;
             retainedEvidenceIndex = -1;
+            retainedEvidenceIndices.Clear();
             currentFollowUpIndex = 0;
+            transferAppliedForCurrentTicket = false;
             currentState = GameState.ReadingTicket;
             mainGameView.ShowTicket(
                 currentTicket,
@@ -251,7 +258,8 @@ namespace MingBay.Core
         /// </summary>
         private void HandleViewDataRequested()
         {
-            if (currentState != GameState.ReadingTicket)
+            if (currentState != GameState.ReadingTicket &&
+                currentState != GameState.ReviewingData)
             {
                 return;
             }
@@ -265,7 +273,8 @@ namespace MingBay.Core
         /// </summary>
         private void HandleFollowUpRequested()
         {
-            if (currentState != GameState.ReviewingData)
+            if (currentState != GameState.ReadingTicket &&
+                currentState != GameState.ReviewingData)
             {
                 return;
             }
@@ -284,7 +293,10 @@ namespace MingBay.Core
             string followUpLine = followUpLines[currentFollowUpIndex];
             currentFollowUpIndex++;
             bool hasRemainingFollowUp = currentFollowUpIndex < followUpLines.Length;
-            mainGameView.ShowResidentFollowUp(followUpLine, hasRemainingFollowUp);
+            mainGameView.ShowResidentFollowUp(
+                currentTicket.UserName,
+                followUpLine,
+                hasRemainingFollowUp);
 
             if (hasRemainingFollowUp)
             {
@@ -317,28 +329,69 @@ namespace MingBay.Core
                 return;
             }
 
-            if (currentTicket.AllowDirectEvidenceSave &&
-                currentTicket.RequiresEvidenceSelection &&
-                retainedEvidenceIndex < 0)
+            if (currentTicket.RequiresEvidenceSelection &&
+                retainedEvidenceIndices.Count == 0)
             {
                 mainGameView.ShowRetainedEvidenceRequired();
                 return;
             }
 
-            metricManager.Apply(currentTicket.TransferMetricDelta);
+            bool shouldPlayTransferDialogue = !transferAppliedForCurrentTicket;
+            if (!transferAppliedForCurrentTicket)
+            {
+                metricManager.Apply(currentTicket.TransferMetricDelta);
+                transferAppliedForCurrentTicket = true;
+            }
 
-            if (currentTicket.AllowDirectEvidenceSave &&
-                currentTicket.RequiresEvidenceSelection)
+            if (currentTicket.RequiresEvidenceSelection &&
+                retainedEvidenceIndices.Count > 0)
             {
                 currentState = GameState.AwaitingEvidencePresentation;
-                mainGameView.ShowEvidencePresentationRequest(
-                    currentTicket,
-                    currentTicket.TransferText,
-                    currentTicket.EvidencePromptText);
+                retainedEvidenceIndex = -1;
+                TicketData ticket = currentTicket;
+                List<int> retainedEvidenceSnapshot = new(retainedEvidenceIndices);
+                if (shouldPlayTransferDialogue)
+                {
+                    mainGameView.PlayTicketDialogue(
+                        ticket.TransferDialogueLines,
+                        false,
+                        () =>
+                        {
+                            if (currentState == GameState.AwaitingEvidencePresentation &&
+                                currentTicket == ticket)
+                            {
+                                mainGameView.ShowEvidenceNotebook(
+                                    ticket,
+                                    retainedEvidenceSnapshot);
+                            }
+                        });
+                }
+                else
+                {
+                    mainGameView.ShowEvidenceNotebook(ticket, retainedEvidenceSnapshot);
+                }
+
                 return;
             }
 
-            BeginEvidenceOrResolutionHint(currentTicket.TransferText);
+            if (shouldPlayTransferDialogue)
+            {
+                TicketData ticket = currentTicket;
+                mainGameView.PlayTicketDialogue(
+                    ticket.TransferDialogueLines,
+                    false,
+                    () =>
+                    {
+                        if (currentTicket == ticket)
+                        {
+                            BeginEvidenceOrResolutionHint(string.Empty);
+                        }
+                    });
+            }
+            else
+            {
+                BeginEvidenceOrResolutionHint(string.Empty);
+            }
         }
 
         /// <summary>
@@ -346,8 +399,14 @@ namespace MingBay.Core
         /// </summary>
         private void HandleSaveEvidenceRequested()
         {
+            if (currentState == GameState.AwaitingEvidence &&
+                selectedEvidenceIndex >= 0)
+            {
+                ResolveEvidence(selectedEvidenceIndex);
+                return;
+            }
+
             if (currentState != GameState.ReviewingData ||
-                !currentTicket.AllowDirectEvidenceSave ||
                 !currentTicket.HasEvidence ||
                 selectedEvidenceIndex < 0)
             {
@@ -355,6 +414,7 @@ namespace MingBay.Core
             }
 
             retainedEvidenceIndex = selectedEvidenceIndex;
+            retainedEvidenceIndices.Add(selectedEvidenceIndex);
             mainGameView.ShowDirectEvidenceSaved(
                 retainedEvidenceIndex,
                 GetMetrics());
@@ -381,19 +441,26 @@ namespace MingBay.Core
         private void HandleEvidenceSelected(int evidenceIndex)
         {
             if (currentState == GameState.ReviewingData &&
-                currentTicket.AllowDirectEvidenceSave)
+                currentTicket.HasEvidence)
             {
                 selectedEvidenceIndex = evidenceIndex;
                 mainGameView.ShowEvidenceCandidateSelected(evidenceIndex);
                 return;
             }
 
-            if (currentState != GameState.AwaitingEvidence)
+            if (currentState == GameState.AwaitingEvidence)
             {
+                selectedEvidenceIndex = evidenceIndex;
+                mainGameView.ShowEvidenceCandidateSelected(evidenceIndex);
                 return;
             }
 
-            ResolveEvidence(evidenceIndex);
+            if (currentState == GameState.AwaitingEvidencePresentation &&
+                retainedEvidenceIndices.Contains(evidenceIndex))
+            {
+                retainedEvidenceIndex = evidenceIndex;
+                return;
+            }
         }
 
         /// <summary>
@@ -421,7 +488,11 @@ namespace MingBay.Core
                     return;
                 }
 
-                FinishTicket("证据核验正确", currentTicket.OnSaveEvidenceText, evidenceSaved);
+                PlayEvidenceResultDialogueThenFinish(
+                    true,
+                    evidenceSaved,
+                    "\u63d0\u4ea4\u6210\u529f",
+                    currentTicket.OnSaveEvidenceText);
                 return;
             }
 
@@ -434,7 +505,11 @@ namespace MingBay.Core
                 return;
             }
 
-            FinishTicket("证据核验错误", currentTicket.OnWrongEvidenceText, false);
+            PlayEvidenceResultDialogueThenFinish(
+                false,
+                false,
+                "\u63d0\u4ea4\u6210\u529f",
+                currentTicket.OnWrongEvidenceText);
         }
 
         /// <summary>
@@ -444,22 +519,31 @@ namespace MingBay.Core
         {
             if (currentState == GameState.AwaitingEvidencePresentation)
             {
+                if (retainedEvidenceIndex < 0)
+                {
+                    return;
+                }
+
                 bool isCorrect =
                     currentTicket.HasEvidence &&
                     retainedEvidenceIndex == currentTicket.CorrectEvidenceIndex;
-                pendingEvidenceCorrect = isCorrect;
-                pendingEvidenceSaved = false;
-                pendingResultTitle = isCorrect ? "证据核验正确" : "证据核验错误";
-                pendingResultText = isCorrect
+
+                metricManager.Apply(
+                    isCorrect
+                        ? currentTicket.CorrectEvidenceMetricDelta
+                        : currentTicket.WrongEvidenceMetricDelta);
+                bool evidenceSaved =
+                    isCorrect &&
+                    evidenceManager.SaveEvidence(currentTicket.EvidenceId);
+                string feedbackText = isCorrect
                     ? currentTicket.OnSaveEvidenceText
                     : currentTicket.OnWrongEvidenceText;
-
-                currentState = GameState.AwaitingDialogueCompletion;
-                mainGameView.ShowEvidenceDialogue(
-                    retainedEvidenceIndex,
-                    isCorrect
-                        ? currentTicket.CorrectEvidenceUserReply
-                        : currentTicket.WrongEvidenceUserReply);
+                mainGameView.HideEvidenceNotebook();
+                PlayEvidenceResultDialogueThenFinish(
+                    isCorrect,
+                    evidenceSaved,
+                    "\u63d0\u4ea4\u6210\u529f",
+                    feedbackText);
                 return;
             }
 
@@ -481,16 +565,38 @@ namespace MingBay.Core
                 pendingEvidenceSaved);
         }
 
+        private void HandleNotebookCancelRequested()
+        {
+            if (currentState != GameState.AwaitingEvidencePresentation)
+            {
+                return;
+            }
+
+            retainedEvidenceIndex = -1;
+            currentState = GameState.ReviewingData;
+            mainGameView.ShowData(currentTicket);
+        }
+
         /// <summary>
         /// 将工单标记为已解决，并记录已解决数量。
         /// </summary>
         private void HandleMarkResolvedRequested()
         {
-            if (currentState != GameState.ReviewingData)
+            bool canForceResolveCurrentTicket =
+                currentTicket != null &&
+                processedTickets != null &&
+                currentTicketIndex >= 0 &&
+                currentTicketIndex < processedTickets.Length &&
+                !processedTickets[currentTicketIndex] &&
+                currentState != GameState.TicketSelection &&
+                currentState != GameState.ShowingResult &&
+                currentState != GameState.AwaitingDialogueCompletion;
+            if (!canForceResolveCurrentTicket)
             {
                 return;
             }
 
+            mainGameView.HideEvidenceNotebook();
             metricManager.Apply(currentTicket.ResolvedMetricDelta);
             FinishTicket("工单已关闭", currentTicket.OnResolvedText, false);
         }
@@ -498,6 +604,33 @@ namespace MingBay.Core
         /// <summary>
         /// 保存当前工单的处理状态并显示结果。
         /// </summary>
+        private void PlayEvidenceResultDialogueThenFinish(
+            bool isCorrect,
+            bool evidenceSaved,
+            string resultTitle,
+            string resultText)
+        {
+            TicketData ticket = currentTicket;
+            currentState = GameState.AwaitingDialogueCompletion;
+            TicketDialogueLine[] resultLines = isCorrect
+                ? ticket.EvidenceCorrectDialogueLines
+                : ticket.EvidenceWrongDialogueLines;
+            mainGameView.PlayTicketDialogue(
+                resultLines,
+                false,
+                () =>
+                {
+                    if (currentTicket != ticket ||
+                        currentState != GameState.AwaitingDialogueCompletion)
+                    {
+                        return;
+                    }
+
+                    FinishTicket(resultTitle, resultText, evidenceSaved);
+                });
+        }
+
+
         private void FinishTicket(string resultTitle, string resultText, bool evidenceSaved)
         {
             processedTickets[currentTicketIndex] = true;
@@ -545,9 +678,10 @@ namespace MingBay.Core
 
         private bool HasLaterStage()
         {
-            for (int index = currentStageIndex + 1; index < stageOrder.Length; index++)
+            string[] configuredStageOrder = GetConfiguredStageOrder();
+            for (int index = currentStageIndex + 1; index < configuredStageOrder.Length; index++)
             {
-                if (database.GetTicketsByStage(stageOrder[index]).Count > 0)
+                if (database.GetTicketsByStage(configuredStageOrder[index]).Count > 0)
                 {
                     return true;
                 }
@@ -558,6 +692,15 @@ namespace MingBay.Core
 
         private string GetCurrentStageDisplayName()
         {
+            if (database != null)
+            {
+                string databaseStageName = database.GetStageDisplayName(currentStageIndex);
+                if (!string.IsNullOrWhiteSpace(databaseStageName))
+                {
+                    return databaseStageName;
+                }
+            }
+
             if (currentStageIndex >= 0 &&
                 currentStageIndex < stageDisplayNames.Length &&
                 !string.IsNullOrWhiteSpace(stageDisplayNames[currentStageIndex]))
@@ -565,14 +708,25 @@ namespace MingBay.Core
                 return stageDisplayNames[currentStageIndex];
             }
 
-            return currentStageIndex >= 0 && currentStageIndex < stageOrder.Length
-                ? stageOrder[currentStageIndex]
+            string[] configuredStageOrder = GetConfiguredStageOrder();
+            return currentStageIndex >= 0 && currentStageIndex < configuredStageOrder.Length
+                ? configuredStageOrder[currentStageIndex]
                 : "当前阶段";
         }
 
         private GameMetrics GetMetrics()
         {
             return metricManager.GetSnapshot(evidenceManager.EvidenceCount);
+        }
+
+        private string[] GetConfiguredStageOrder()
+        {
+            if (database != null && database.StageOrderArray.Length > 0)
+            {
+                return database.StageOrderArray;
+            }
+
+            return stageOrder ?? System.Array.Empty<string>();
         }
 
         /// <summary>
@@ -632,7 +786,7 @@ namespace MingBay.Core
                 isValid = false;
             }
 
-            if (stageOrder == null || stageOrder.Length == 0)
+            if (GetConfiguredStageOrder().Length == 0)
             {
                 Debug.LogError("GameFlowManager 的“阶段顺序”至少需要配置一个阶段。", this);
                 isValid = false;
