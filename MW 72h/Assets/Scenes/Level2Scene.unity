@@ -14357,7 +14357,8 @@ GameObject:
   - component: {fileID: 1119582115}
   - component: {fileID: 1119582114}
   - component: {fileID: 1119582113}
-  - component: {fileID: 1119582112}
+  - component: {fileID: 1119582116}
+  - component: {fileID: 1119582117}
   m_Layer: 0
   m_Name: GameSystems
   m_TagString: Untagged
@@ -14365,27 +14366,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &1119582112
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1119582111}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5badb552b8b78334aae606b49205be12, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::MingBay.Core.Level1GameFlowManager
-  database: {fileID: 11400000, guid: a80208de9eb74a34b851dad7abaa27c7, type: 2}
-  evidenceManager: {fileID: 1119582114}
-  metricManager: {fileID: 1119582113}
-  mainGameView: {fileID: 14585235}
-  stageOrder:
-  - N1
-  stageDisplayNames:
-  - "\u7B2C\u4E00\u591C"
-  titleSceneName: TitleScene
 --- !u!114 &1119582113
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14425,6 +14405,41 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1119582116
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119582111}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6c0fbf1a0d59cc4a8995c296936df4e, type: 3}
+  m_Name: Level2GameFlowManager
+  m_EditorClassIdentifier: Assembly-CSharp::MingBay.Core.Level2GameFlowManager
+  database: {fileID: 11400000, guid: 19dff0f014b613048a6d4e1caacff6f8, type: 2}
+  keywordEvidenceDatabase: {fileID: 11400000, guid: 93e603d408e706441b204b064554c486, type: 2}
+  evidenceManager: {fileID: 1119582114}
+  metricManager: {fileID: 1119582113}
+  mainGameView: {fileID: 14585235}
+  evidenceChainController: {fileID: 1119582117}
+  stageOrder:
+  - N2
+  stageDisplayNames:
+  - "\u7B2C\u4E8C\u591C"
+  titleSceneName: TitleScene
+--- !u!114 &1119582117
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1119582111}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c7ff28ea6a859b746b0ce423dacd5456, type: 3}
+  m_Name: Level2EvidenceChainController
+  m_EditorClassIdentifier: Assembly-CSharp::MingBay.UI.Level2EvidenceChainController
 --- !u!1 &1143799482
 GameObject:
   m_ObjectHideFlags: 0
