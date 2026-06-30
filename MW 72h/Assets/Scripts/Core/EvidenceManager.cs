@@ -19,7 +19,13 @@ namespace MingBay.Core
         /// </summary>
         public bool SaveEvidence(string evidenceId)
         {
-            return !string.IsNullOrWhiteSpace(evidenceId) && savedEvidenceIds.Add(evidenceId);
+            if (string.IsNullOrWhiteSpace(evidenceId) || !savedEvidenceIds.Add(evidenceId))
+            {
+                return false;
+            }
+
+            GameRunState.SaveEvidence(evidenceId);
+            return true;
         }
 
         /// <summary>

@@ -53,6 +53,16 @@ namespace MingBay.Core
         [Tooltip("点击结果面板中的“返回主菜单”后加载的场景。必须存在于 Build Settings。")]
         private string titleSceneName = "TitleScene";
 
+        [SerializeField]
+        [InspectorName("下一关场景名称")]
+        [Tooltip("当前关卡完成且不是最终阶段时加载的场景。第一天默认进入 Level2Scene。")]
+        private string nextLevelSceneName = "Level2Scene";
+
+        [SerializeField]
+        [InspectorName("结局场景名称")]
+        [Tooltip("最终阶段完成后加载的结局场景。当前阶段顺序以 N3 或 FINAL 结束时生效。")]
+        private string endingSceneName = "EndingScene";
+
         private Level1GameState currentState;
         private readonly List<TicketData> currentStageTickets = new();
         private TicketData currentTicket;
@@ -597,6 +607,7 @@ namespace MingBay.Core
             }
 
             mainGameView.HideEvidenceNotebook();
+            GameRunState.RecordAutoClear();
             metricManager.Apply(currentTicket.ResolvedMetricDelta);
             FinishTicket("工单已关闭", currentTicket.OnResolvedText, false);
         }
@@ -641,7 +652,11 @@ namespace MingBay.Core
                 ? "返回工单列表"
                 : HasLaterStage()
                     ? "进入下一阶段"
-                    : "结束值班";
+                    : ShouldLoadEndingScene()
+                        ? "查看结局"
+                        : ShouldLoadNextLevelScene()
+                            ? "进入下一天"
+                            : "结束值班";
             mainGameView.RefreshQueueStates(currentTicketIndex, processedTickets);
             mainGameView.ShowResult(
                 resultTitle,
@@ -672,7 +687,18 @@ namespace MingBay.Core
 
             if (!LoadNextStage())
             {
-                ReturnToTitle();
+                if (ShouldLoadEndingScene())
+                {
+                    LoadEndingScene();
+                }
+                else if (ShouldLoadNextLevelScene())
+                {
+                    LoadNextLevelScene();
+                }
+                else
+                {
+                    ReturnToTitle();
+                }
             }
         }
 
@@ -688,6 +714,26 @@ namespace MingBay.Core
             }
 
             return false;
+        }
+
+        private bool ShouldLoadEndingScene()
+        {
+            string[] configuredStageOrder = GetConfiguredStageOrder();
+            if (configuredStageOrder.Length == 0)
+            {
+                return false;
+            }
+
+            string finalStageId = configuredStageOrder[configuredStageOrder.Length - 1];
+            return string.Equals(finalStageId, "N3", System.StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(finalStageId, "FINAL", System.StringComparison.OrdinalIgnoreCase);
+        }
+
+        private bool ShouldLoadNextLevelScene()
+        {
+            string sceneName = GetNextLevelSceneName();
+            return !string.IsNullOrWhiteSpace(sceneName) &&
+                   Application.CanStreamedLevelBeLoaded(sceneName);
         }
 
         private string GetCurrentStageDisplayName()
@@ -747,6 +793,51 @@ namespace MingBay.Core
 
             isSceneLoading = true;
             SceneManager.LoadSceneAsync(titleSceneName);
+        }
+
+        private void LoadEndingScene()
+        {
+            if (isSceneLoading)
+            {
+                return;
+            }
+
+            if (!Application.CanStreamedLevelBeLoaded(endingSceneName))
+            {
+                Debug.LogError($"无法加载场景“{endingSceneName}”，请检查 Build Settings。", this);
+                ReturnToTitle();
+                return;
+            }
+
+            isSceneLoading = true;
+            SceneManager.LoadSceneAsync(endingSceneName);
+        }
+
+        private void LoadNextLevelScene()
+        {
+            if (isSceneLoading)
+            {
+                return;
+            }
+
+            string sceneName = GetNextLevelSceneName();
+            if (string.IsNullOrWhiteSpace(sceneName) ||
+                !Application.CanStreamedLevelBeLoaded(sceneName))
+            {
+                Debug.LogError($"无法加载下一关场景“{sceneName}”，请检查 Build Settings。", this);
+                ReturnToTitle();
+                return;
+            }
+
+            isSceneLoading = true;
+            SceneManager.LoadSceneAsync(sceneName);
+        }
+
+        private string GetNextLevelSceneName()
+        {
+            return string.IsNullOrWhiteSpace(nextLevelSceneName)
+                ? "Level2Scene"
+                : nextLevelSceneName;
         }
 
         /// <summary>

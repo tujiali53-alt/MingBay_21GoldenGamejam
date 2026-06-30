@@ -36,6 +36,7 @@ namespace MingBay.Core
             transferCount += delta.TransferCount;
             userSatisfaction += delta.UserSatisfaction;
             a07Risk += delta.A07Risk;
+            GameRunState.Apply(delta);
         }
 
         /// <summary>

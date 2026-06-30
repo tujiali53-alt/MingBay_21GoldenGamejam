@@ -23,6 +23,11 @@ namespace MingBay.Editor
     {
         private const string Level1ScenePath = "Assets/Scenes/Level1Scene.unity";
         private const string TitleScenePath = "Assets/Scenes/TitleScene.unity";
+        private const string Level2ScenePath = "Assets/Scenes/Level2Scene.unity";
+        private const string Level3ScenePath = "Assets/Scenes/Level3Scene.unity";
+        private const string FinalConfrontationScenePath =
+            "Assets/Scenes/FinalConfrontationScene.unity";
+        private const string EndingScenePath = "Assets/Scenes/EndingScene.unity";
         private const string SpreadsheetConfigJsonPath =
             "Assets/Configs/Spreadsheet/MingBaySpreadsheetConfig.json";
         private const string CurrentSpreadsheetLevelId = "N1";
@@ -1700,7 +1705,7 @@ namespace MingBay.Editor
                 Hex("3C3C3C"),
                 new Vector2(0.5f, 0.5f),
                 new Vector2(0.5f, 0.5f),
-                new Vector2(1500f, 760f),
+                new Vector2(1840f, 1000f),
                 new Vector2(0f, -8f));
 
             RectTransform desktop = CreateImage(
@@ -4324,6 +4329,8 @@ namespace MingBay.Editor
             SetStringArray(serializedFlow, "stageOrder", CurrentSpreadsheetLevelId);
             SetStringArray(serializedFlow, "stageDisplayNames", CurrentSpreadsheetLevelName);
             serializedFlow.FindProperty("titleSceneName").stringValue = "TitleScene";
+            serializedFlow.FindProperty("nextLevelSceneName").stringValue = "Level2Scene";
+            serializedFlow.FindProperty("endingSceneName").stringValue = "EndingScene";
             serializedFlow.ApplyModifiedPropertiesWithoutUndo();
         }
 
@@ -4453,11 +4460,34 @@ namespace MingBay.Editor
 
         private static void UpdateBuildSettings()
         {
-            EditorBuildSettings.scenes = new[]
+            string[] requiredPaths =
             {
-                new EditorBuildSettingsScene(TitleScenePath, true),
-                new EditorBuildSettingsScene(Level1ScenePath, true)
+                TitleScenePath,
+                Level1ScenePath,
+                Level2ScenePath,
+                Level3ScenePath,
+                FinalConfrontationScenePath,
+                EndingScenePath
             };
+            List<EditorBuildSettingsScene> scenes = new();
+            foreach (string path in requiredPaths)
+            {
+                scenes.Add(new EditorBuildSettingsScene(path, true));
+            }
+
+            foreach (EditorBuildSettingsScene scene in EditorBuildSettings.scenes)
+            {
+                if (scene == null ||
+                    string.IsNullOrWhiteSpace(scene.path) ||
+                    Array.Exists(requiredPaths, path => path == scene.path))
+                {
+                    continue;
+                }
+
+                scenes.Add(scene);
+            }
+
+            EditorBuildSettings.scenes = scenes.ToArray();
         }
 
         private static void CapturePreview(Canvas canvas, Camera camera)

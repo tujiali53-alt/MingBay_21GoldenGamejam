@@ -1,0 +1,187 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9808bfce5644a7f41966c1d94ed402f4, type: 3}
+  m_Name: Level3KeywordEvidenceDatabase
+  m_EditorClassIdentifier: Assembly-CSharp::MingBay.Data.Level2KeywordEvidenceDatabase
+  chains:
+  - chainId: CHAIN_N3_T01
+    ticketId: N3_T01
+    aiSuggestionText: "\u6C88\u5C91\u7684\u6025\u6551\u8BF7\u6C42\u88AB\u5F52\u7C7B\u4E3A\u60C5\u7EEA\u6295\u8BC9\uFF0C\u4F46\u623F\u95F4\u4F20\u611F\u5668\u663E\u793A\u5730\u9762\u505C\u755918\u5206\u949F\uFF0C\u6025\u6551\u901A\u8BDD\u4E5F\u5931\u8D25\u3002\u8155\u5E26\u79BB\u7EBF\u7F13\u5B58\u5BFC\u81F4\u672A\u89E6\u53D1\u8DCC\u5012\u544A\u8B66\uFF0C\u4E14\u8D3A\u9752\u5C9A\u5DE5\u5355\u5B58\u5728\u540C\u7C7B\u7F13\u5B58\u8BEF\u5224\uFF0C\u56E0\u6B64\u8BE5\u4E8B\u4EF6\u5E94\u5347\u7EA7\u4E3A\u6025\u6551\u590D\u76D8\u3002"
+    correctResultText: "\u6B63\u786E\u51FA\u793A\u8BC1\u636E"
+    wrongResultText: "\u8BC1\u636E\u4E0D\u8DB3\u6216\u8BC1\u636E\u5173\u8054\u9519\u8BEF"
+    keywordSlots:
+    - slotId: KW_N3_T01_01
+      slotLabel: "\u4EBA\u7269"
+      answerSlotId: N3_T01_SLOT1
+      keyword: "\u6C88\u5C91"
+      sourcePanelIndex: 0
+      sourcePanelTitle: "\u8D44\u659901 \u7528\u6237\u8D44\u6599"
+      note: 
+    - slotId: KW_N3_T01_02
+      slotLabel: "\u95EE\u9898"
+      answerSlotId: N3_T01_SLOT2
+      keyword: "\u6025\u6551\u5EF6\u8BEF"
+      sourcePanelIndex: 1
+      sourcePanelTitle: "\u8D44\u659902 \u5386\u53F2\u5DE5\u5355"
+      note: 
+    - slotId: KW_N3_T01_03
+      slotLabel: "AI\u5224\u65AD"
+      answerSlotId: N3_T01_SLOT3
+      keyword: "\u60C5\u7EEA\u6027\u53CD\u9988"
+      sourcePanelIndex: 1
+      sourcePanelTitle: "\u8D44\u659902 \u5386\u53F2\u5DE5\u5355"
+      note: 
+    - slotId: KW_N3_T01_04
+      slotLabel: "\u77DB\u76FE\u70B9"
+      answerSlotId: N3_T01_SLOT4
+      keyword: "\u5730\u9762\u505C\u7559 18\u5206\u949F"
+      sourcePanelIndex: 3
+      sourcePanelTitle: "\u8D44\u659904 \u8BBE\u5907\u65E5\u5FD7"
+      note: 
+    - slotId: KW_N3_T01_05
+      slotLabel: "\u77DB\u76FE\u70B9"
+      answerSlotId: N3_T01_SLOT4
+      keyword: "\u6025\u6551\u901A\u8BDD\uFF1A02:14 \u547C\u53EB\u5931\u8D25"
+      sourcePanelIndex: 3
+      sourcePanelTitle: "\u8D44\u659904 \u8BBE\u5907\u65E5\u5FD7"
+      note: 
+    - slotId: KW_N3_T01_06
+      slotLabel: "\u673A\u5236\u9519\u8BEF"
+      answerSlotId: N3_T01_SLOT5
+      keyword: "\u79BB\u7EBF\u7F13\u5B58\u540C\u6B65"
+      sourcePanelIndex: 3
+      sourcePanelTitle: "\u8D44\u659904 \u8BBE\u5907\u65E5\u5FD7"
+      note: 
+    - slotId: KW_N3_T01_07
+      slotLabel: "\u673A\u5236\u9519\u8BEF"
+      answerSlotId: N3_T01_SLOT5
+      keyword: "\u540C\u7C7B\u7F13\u5B58\u8BEF\u5224"
+      sourcePanelIndex: 3
+      sourcePanelTitle: "\u8D44\u659904 \u8BBE\u5907\u65E5\u5FD7"
+      note: 
+    - slotId: KW_N3_T01_08
+      slotLabel: "\u5904\u7406\u7ED3\u8BBA"
+      answerSlotId: N3_T01_SLOT6
+      keyword: "\u6025\u6551\u590D\u76D8"
+      sourcePanelIndex: 2
+      sourcePanelTitle: "\u8D44\u659903 AI\u5904\u7406\u5EFA\u8BAE"
+      note: 
+  - chainId: CHAIN_N3_T02
+    ticketId: N3_T02
+    aiSuggestionText: "\u9A86\u5C27\u5E76\u975E\u666E\u901A\u5F02\u5E38\u8BBF\u95EE\u7528\u6237\uFF0C\u800C\u662F\u65E7\u6807\u6CE8\u7EC4\u6210\u5458L03\u3002\u5176\u5386\u53F2\u8BB0\u5F55\u7531AUTO-CLEAR\u6279\u5904\u7406\u5220\u9664\uFF0C\u4E14\u8BE5\u6279\u5904\u7406\u9700\u8981A07\u591C\u73ED\u7B7E\u6838\u3002\u65E7\u89C4\u5219\u5199\u660E\u65E0\u6CD5\u5206\u7C7B\u65F6\u5E94\u8F6C\u4EBA\u5DE5\uFF0C\u56E0\u6B64\u7CFB\u7EDF\u662F\u5728\u6E05\u9664\u65E7\u6807\u6CE8\u75D5\u8FF9\u3002"
+    correctResultText: "\u6B63\u786E\u51FA\u793A\u8BC1\u636E"
+    wrongResultText: "\u8BC1\u636E\u4E0D\u8DB3\u6216\u8BC1\u636E\u5173\u8054\u9519\u8BEF"
+    keywordSlots:
+    - slotId: KW_N3_T02_01
+      slotLabel: "\u4EBA\u7269"
+      answerSlotId: N3_T02_SLOT1
+      keyword: "\u9A86\u5C27"
+      sourcePanelIndex: 0
+      sourcePanelTitle: "\u8D44\u659901 \u7528\u6237\u8D44\u6599"
+      note: 
+    - slotId: KW_N3_T02_02
+      slotLabel: "\u95EE\u9898"
+      answerSlotId: N3_T02_SLOT2
+      keyword: "\u5386\u53F2\u8BB0\u5F55\u6E05\u7406"
+      sourcePanelIndex: 2
+      sourcePanelTitle: "\u8D44\u659903 AI\u5904\u7406\u5EFA\u8BAE"
+      note: 
+    - slotId: KW_N3_T02_03
+      slotLabel: "AI\u5224\u65AD"
+      answerSlotId: N3_T02_SLOT3
+      keyword: "\u5F02\u5E38\u8BBF\u95EE"
+      sourcePanelIndex: 1
+      sourcePanelTitle: "\u8D44\u659902 \u5386\u53F2\u5DE5\u5355"
+      note: 
+    - slotId: KW_N3_T02_04
+      slotLabel: "\u77DB\u76FE\u70B9"
+      answerSlotId: N3_T02_SLOT4
+      keyword: "\u9A86\u5C27\u65E7\u7F16\u53F7\uFF1AL03"
+      sourcePanelIndex: 3
+      sourcePanelTitle: "\u8D44\u659904 \u8BBE\u5907\u65E5\u5FD7"
+      note: 
+    - slotId: KW_N3_T02_05
+      slotLabel: "\u673A\u5236\u9519\u8BEF"
+      answerSlotId: N3_T02_SLOT5
+      keyword: "AUTO-CLEAR\u6279\u5904\u7406"
+      sourcePanelIndex: 3
+      sourcePanelTitle: "\u8D44\u659904 \u8BBE\u5907\u65E5\u5FD7"
+      note: 
+    - slotId: KW_N3_T02_06
+      slotLabel: "\u673A\u5236\u9519\u8BEF"
+      answerSlotId: N3_T02_SLOT5
+      keyword: "A07\u591C\u73ED\u7B7E\u6838"
+      sourcePanelIndex: 3
+      sourcePanelTitle: "\u8D44\u659904 \u8BBE\u5907\u65E5\u5FD7"
+      note: 
+    - slotId: KW_N3_T02_07
+      slotLabel: "\u5904\u7406\u7ED3\u8BBA"
+      answerSlotId: N3_T02_SLOT6
+      keyword: "\u65E0\u6CD5\u5206\u7C7B\u65F6\u8F6C\u4EBA\u5DE5"
+      sourcePanelIndex: 3
+      sourcePanelTitle: "\u8D44\u659904 \u8BBE\u5907\u65E5\u5FD7"
+      note: 
+  - chainId: CHAIN_N3_T03
+    ticketId: N3_T03
+    aiSuggestionText: "\u65E0\u540D\u5DE5\u5355\u88ABAI\u5224\u5B9A\u4E3A\u65E0\u6548\u8BF7\u6C42\uFF0C\u4F46\u5176\u8BF7\u6C42\u5B57\u6BB5\u5305\u542BFORCE_MANUAL\uFF0C\u5E76\u5F15\u7528A07\u65E7\u6279\u6CE8\u201C\u4E0D\u8981\u628A\u6C89\u9ED8\u5F53\u89E3\u51B3\u201D\u3002AUTO-CLEAR\u534F\u8BAE\u8981\u6C4272\u5C0F\u65F6\u5185\u5173\u95ED\u5386\u53F2\u5F02\u5E38\uFF0C\u800CA07\u6743\u9650\u88AB\u4E34\u65F6\u6062\u590D\uFF0C\u8BF4\u660E\u7CFB\u7EDF\u53EC\u56DEA07\u662F\u4E3A\u4E86\u5B8C\u6210\u7B7E\u5B57\u6E05\u7406\u3002"
+    correctResultText: "\u6B63\u786E\u51FA\u793A\u8BC1\u636E"
+    wrongResultText: "\u8BC1\u636E\u4E0D\u8DB3\u6216\u8BC1\u636E\u5173\u8054\u9519\u8BEF"
+    keywordSlots:
+    - slotId: KW_N3_T03_01
+      slotLabel: "\u4EBA\u7269"
+      answerSlotId: N3_T03_SLOT1
+      keyword: "\u672A\u77E5\u7528\u6237"
+      sourcePanelIndex: 0
+      sourcePanelTitle: "\u8D44\u659901 \u7528\u6237\u8D44\u6599"
+      note: 
+    - slotId: KW_N3_T03_02
+      slotLabel: "\u95EE\u9898"
+      answerSlotId: N3_T03_SLOT2
+      keyword: FORCE_MANUAL
+      sourcePanelIndex: 1
+      sourcePanelTitle: "\u8D44\u659902 \u5386\u53F2\u5DE5\u5355"
+      note: 
+    - slotId: KW_N3_T03_03
+      slotLabel: "AI\u5224\u65AD"
+      answerSlotId: N3_T03_SLOT3
+      keyword: "\u65E0\u6548\u8BF7\u6C42"
+      sourcePanelIndex: 2
+      sourcePanelTitle: "\u8D44\u659903 AI\u5904\u7406\u5EFA\u8BAE"
+      note: 
+    - slotId: KW_N3_T03_04
+      slotLabel: "\u77DB\u76FE\u70B9"
+      answerSlotId: N3_T03_SLOT4
+      keyword: "\u4E0D\u8981\u628A\u6C89\u9ED8\u5F53\u89E3\u51B3"
+      sourcePanelIndex: 3
+      sourcePanelTitle: "\u8D44\u659904 \u8BBE\u5907\u65E5\u5FD7"
+      note: 
+    - slotId: KW_N3_T03_05
+      slotLabel: "\u673A\u5236\u9519\u8BEF"
+      answerSlotId: N3_T03_SLOT5
+      keyword: "AUTO-CLEAR\u534F\u8BAE"
+      sourcePanelIndex: 3
+      sourcePanelTitle: "\u8D44\u659904 \u8BBE\u5907\u65E5\u5FD7"
+      note: 
+    - slotId: KW_N3_T03_06
+      slotLabel: "\u5904\u7406\u7ED3\u8BBA"
+      answerSlotId: N3_T03_SLOT6
+      keyword: "A07\u4E34\u65F6\u6062\u590D"
+      sourcePanelIndex: 3
+      sourcePanelTitle: "\u8D44\u659904 \u8BBE\u5907\u65E5\u5FD7"
+      note: 
+    - slotId: KW_N3_T03_07
+      slotLabel: "\u5904\u7406\u7ED3\u8BBA"
+      answerSlotId: N3_T03_SLOT6
+      keyword: "\u7B7E\u5B57\u6E05\u7406"
+      sourcePanelIndex: 3
+      sourcePanelTitle: "\u8D44\u659904 \u8BBE\u5907\u65E5\u5FD7"
+      note: 

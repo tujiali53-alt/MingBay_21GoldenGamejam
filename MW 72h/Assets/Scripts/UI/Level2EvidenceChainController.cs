@@ -56,6 +56,14 @@ namespace MingBay.UI
         public bool IsAnalysisMatched => analysisMatched;
         public string CurrentAiSuggestion => currentAiSuggestion;
 
+        public void HideTransientPanels()
+        {
+            SetVisible(statusPanel, false);
+            SetVisible(analysisOverlay, false);
+            selectedKeywordSlotId = string.Empty;
+            analysisClosed = null;
+        }
+
         public void BeginTicket(TicketData ticket, Level2EvidenceChain chain)
         {
             currentChain = chain;

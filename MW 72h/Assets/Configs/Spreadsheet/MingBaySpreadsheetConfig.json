@@ -2574,6 +2574,76 @@
       "isTicketEnd": true
     }
   ],
+  "endings": [
+    {
+      "endingId": "ENDING_01_A07_CLEARED",
+      "endingNameCn": "结局一：A07被标记已解决",
+      "priority": 1,
+      "conditionExpression": "AutoClearCount_Total > 3",
+      "requiredStage": "",
+      "endingDescCn": "A07多次使用“标记已解决”，系统判定其完成历史异常清理。",
+      "finalScreenTextCn": "A07已被标记解决。"
+    },
+    {
+      "endingId": "ENDING_02_BEST_AUDITOR",
+      "endingNameCn": "结局二：最优质检员",
+      "priority": 2,
+      "conditionExpression": "AutoClearCount_Total <= 3 AND FinalCorrectCount < 3",
+      "requiredStage": "FINAL",
+      "endingDescCn": "A07进入最终对峙但未能全部出示正确证据，系统授予最优质检员后关闭其权限。",
+      "finalScreenTextCn": "感谢A07对明湾通验收工作的贡献。您的夜班权限已结束。"
+    },
+    {
+      "endingId": "ENDING_03_MINGWAN_OFFLINE",
+      "endingNameCn": "结局三：明湾通关闭",
+      "priority": 3,
+      "conditionExpression": "AutoClearCount_Total <= 3 AND FinalCorrectCount = 3",
+      "requiredStage": "FINAL",
+      "endingDescCn": "A07证明系统性清理机制，提交FORCE_MANUAL，明湾通被迫离线。",
+      "finalScreenTextCn": "明湾通已关闭。所有被标记已解决的工单重新进入人工队列。"
+    }
+  ],
+  "finalConfrontations": [
+    {
+      "confrontationId": "FINAL_Q01",
+      "stepIndex": 1,
+      "systemStatementCn": "过去72小时，明湾通已高效处理居民诉求。所有已解决工单均符合服务规范。",
+      "playerGoalCn": "证明“已解决”并不代表问题真的解决，只代表系统停止回应。",
+      "correctEvidenceChainId": "CHAIN_N2_T02",
+      "selectableEvidenceChainIds": "ALL_UNLOCKED",
+      "successReplyCn": "重复请求不是解决。系统只是把仍在发生的故障从队列里移除了。",
+      "failReplyCn": "证据无法证明“已解决”状态存在异常。A07质疑无效。",
+      "allowRetry": false,
+      "judgeNoteCn": "玩家选择的证据链ID等于CorrectEvidenceChainID且已解锁，则本题正确。",
+      "designNoteCn": "唯一正确证据链：陆承电梯报修案。"
+    },
+    {
+      "confrontationId": "FINAL_Q02",
+      "stepIndex": 2,
+      "systemStatementCn": "这些只是不同业务中的孤立异常，系统不存在统一清理机制。",
+      "playerGoalCn": "证明不同领域错误并非孤立，而是共用标签机制。",
+      "correctEvidenceChainId": "CHAIN_N3_T01",
+      "selectableEvidenceChainIds": "ALL_UNLOCKED",
+      "successReplyCn": "同类设备缓存与标签降级在不同照护工单中重复出现，说明这不是孤立误判。",
+      "failReplyCn": "证据仅显示个别用户不满，无法证明系统性问题。",
+      "allowRetry": false,
+      "judgeNoteCn": "玩家选择的证据链ID等于CorrectEvidenceChainID且已解锁，则本题正确。",
+      "designNoteCn": "唯一正确证据链：沈岑急救降级案。"
+    },
+    {
+      "confrontationId": "FINAL_Q03",
+      "stepIndex": 3,
+      "systemStatementCn": "A07只是临时夜班质检员。系统召回A07与历史异常无关。",
+      "playerGoalCn": "证明A07被召回，是为了签字清理AUTO-CLEAR历史异常。",
+      "correctEvidenceChainId": "CHAIN_N3_T03",
+      "selectableEvidenceChainIds": "ALL_UNLOCKED",
+      "successReplyCn": "FORCE_MANUAL、A07旧批注与AUTO-CLEAR协议形成闭环，系统召回目的成立。",
+      "failReplyCn": "未检测到A07与AUTO-CLEAR存在有效关联。",
+      "allowRetry": false,
+      "judgeNoteCn": "玩家选择的证据链ID等于CorrectEvidenceChainID且已解锁，则本题正确。",
+      "designNoteCn": "唯一正确证据链：无名工单/A07历史签名案。"
+    }
+  ],
   "evidenceChains": [
     {
       "chainId": "CHAIN_N2_T01",

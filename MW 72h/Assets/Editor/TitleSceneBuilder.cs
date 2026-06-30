@@ -571,7 +571,11 @@ namespace MingBay.Editor
             EditorBuildSettings.scenes = new[]
             {
                 new EditorBuildSettingsScene(TitleScenePath, true),
-                new EditorBuildSettingsScene(Level1ScenePath, true)
+                new EditorBuildSettingsScene(Level1ScenePath, true),
+                new EditorBuildSettingsScene("Assets/Scenes/Level2Scene.unity", true),
+                new EditorBuildSettingsScene("Assets/Scenes/Level3Scene.unity", true),
+                new EditorBuildSettingsScene("Assets/Scenes/FinalConfrontationScene.unity", true),
+                new EditorBuildSettingsScene("Assets/Scenes/EndingScene.unity", true)
             };
         }
 
@@ -653,10 +657,11 @@ namespace MingBay.Editor
                 font,
                 out Button startButton,
                 out Button continueButton,
-                out _,
-                out _,
+                out Button settingsButton,
+                out Button developersButton,
                 out Button exitButton);
-            BindMenuController(startButton, continueButton, exitButton);
+            Button languageButton = CreateLanguagePlaceholderButton(root, font);
+            BindMenuController(startButton, continueButton, settingsButton, languageButton, developersButton, exitButton);
 
             EditorSceneManager.SaveScene(scene, TitleScenePath);
             UpdateBuildSettings();
@@ -669,6 +674,9 @@ namespace MingBay.Editor
         private static void BindMenuController(
             Button startButton,
             Button continueButton,
+            Button settingsButton,
+            Button languageButton,
+            Button developersButton,
             Button exitButton)
         {
             GameObject controllerObject = new("MainMenuController");
@@ -681,6 +689,9 @@ namespace MingBay.Editor
             additionalStartButtons.arraySize = 1;
             additionalStartButtons.GetArrayElementAtIndex(0).objectReferenceValue = continueButton;
 
+            serializedController.FindProperty("settingsButton").objectReferenceValue = settingsButton;
+            serializedController.FindProperty("languageButton").objectReferenceValue = languageButton;
+            serializedController.FindProperty("developersButton").objectReferenceValue = developersButton;
             serializedController.FindProperty("exitButton").objectReferenceValue = exitButton;
             serializedController.FindProperty("gameSceneName").stringValue = "Level1Scene";
             serializedController.ApplyModifiedPropertiesWithoutUndo();
@@ -803,6 +814,51 @@ namespace MingBay.Editor
                 FontStyles.Bold,
                 PrimaryText,
                 TextAlignmentOptions.MidlineLeft,
+                Vector2.zero,
+                Vector2.one,
+                Vector2.zero,
+                Vector2.zero);
+
+            return button;
+        }
+
+        private static Button CreateLanguagePlaceholderButton(RectTransform root, TMP_FontAsset font)
+        {
+            RectTransform rect = CreateRect(
+                "Btn_LanguageToggle",
+                root,
+                new Vector2(1f, 1f),
+                new Vector2(1f, 1f),
+                new Vector2(-72f, -72f),
+                new Vector2(56f, 56f));
+            rect.pivot = new Vector2(0.5f, 0.5f);
+
+            Image target = rect.gameObject.AddComponent<Image>();
+            target.color = new Color(0.78f, 0.78f, 0.78f, 0.18f);
+
+            Outline outline = rect.gameObject.AddComponent<Outline>();
+            outline.effectColor = new Color(0.92f, 0.92f, 0.92f, 0.85f);
+            outline.effectDistance = new Vector2(2f, -2f);
+
+            Button button = rect.gameObject.AddComponent<Button>();
+            button.targetGraphic = target;
+            ColorBlock colors = button.colors;
+            colors.normalColor = new Color(1f, 1f, 1f, 0.10f);
+            colors.highlightedColor = new Color(1f, 1f, 1f, 0.22f);
+            colors.pressedColor = new Color(1f, 1f, 1f, 0.32f);
+            colors.selectedColor = colors.highlightedColor;
+            colors.fadeDuration = 0.08f;
+            button.colors = colors;
+
+            CreateText(
+                "Txt_LanguageToggle",
+                rect,
+                font,
+                "中",
+                22f,
+                FontStyles.Bold,
+                PrimaryText,
+                TextAlignmentOptions.Center,
                 Vector2.zero,
                 Vector2.one,
                 Vector2.zero,
@@ -1595,7 +1651,11 @@ namespace MingBay.Editor
             EditorBuildSettings.scenes = new[]
             {
                 new EditorBuildSettingsScene(TitleScenePath, true),
-                new EditorBuildSettingsScene(Level1ScenePath, true)
+                new EditorBuildSettingsScene(Level1ScenePath, true),
+                new EditorBuildSettingsScene("Assets/Scenes/Level2Scene.unity", true),
+                new EditorBuildSettingsScene("Assets/Scenes/Level3Scene.unity", true),
+                new EditorBuildSettingsScene("Assets/Scenes/FinalConfrontationScene.unity", true),
+                new EditorBuildSettingsScene("Assets/Scenes/EndingScene.unity", true)
             };
         }
 

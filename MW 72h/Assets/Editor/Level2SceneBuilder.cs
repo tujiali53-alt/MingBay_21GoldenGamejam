@@ -17,6 +17,10 @@ namespace MingBay.Editor
         private const string Level2ScenePath = "Assets/Scenes/Level2Scene.unity";
         private const string Level1ScenePath = "Assets/Scenes/Level1Scene.unity";
         private const string TitleScenePath = "Assets/Scenes/TitleScene.unity";
+        private const string Level3ScenePath = "Assets/Scenes/Level3Scene.unity";
+        private const string FinalConfrontationScenePath =
+            "Assets/Scenes/FinalConfrontationScene.unity";
+        private const string EndingScenePath = "Assets/Scenes/EndingScene.unity";
         private const string SpreadsheetConfigJsonPath =
             "Assets/Configs/Spreadsheet/MingBaySpreadsheetConfig.json";
         private const string DatabaseAssetPath =
@@ -178,7 +182,10 @@ namespace MingBay.Editor
                 "evidencePromptText",
                 "请选择资料中的关键词，形成证据链后转人工。");
             serializedTicket.FindProperty("hasEvidence").boolValue = true;
-            SetString(serializedTicket, "evidenceId", $"EVIDENCE_{ticketId}");
+            SetString(
+                serializedTicket,
+                "evidenceId",
+                chain != null ? Clean(chain.chainId) : $"EVIDENCE_{ticketId}");
             serializedTicket.FindProperty("correctEvidenceIndex").intValue = 0;
             SetString(serializedTicket, "onSaveEvidenceText", correctResult);
             SetString(serializedTicket, "onWrongEvidenceText", wrongResult);
@@ -449,6 +456,8 @@ namespace MingBay.Editor
             SetStringArray(serializedFlow, "stageOrder", LevelId);
             SetStringArray(serializedFlow, "stageDisplayNames", LevelDisplayName);
             serializedFlow.FindProperty("titleSceneName").stringValue = "TitleScene";
+            serializedFlow.FindProperty("nextLevelSceneName").stringValue = "Level3Scene";
+            serializedFlow.FindProperty("endingSceneName").stringValue = "EndingScene";
             serializedFlow.ApplyModifiedPropertiesWithoutUndo();
 
             SerializedObject serializedView = new(view);
@@ -1068,12 +1077,34 @@ namespace MingBay.Editor
 
         private static void UpdateBuildSettings()
         {
-            EditorBuildSettings.scenes = new[]
+            string[] requiredPaths =
             {
-                new EditorBuildSettingsScene(TitleScenePath, true),
-                new EditorBuildSettingsScene(Level1ScenePath, true),
-                new EditorBuildSettingsScene(Level2ScenePath, true)
+                TitleScenePath,
+                Level1ScenePath,
+                Level2ScenePath,
+                Level3ScenePath,
+                FinalConfrontationScenePath,
+                EndingScenePath
             };
+            List<EditorBuildSettingsScene> scenes = new();
+            foreach (string path in requiredPaths)
+            {
+                scenes.Add(new EditorBuildSettingsScene(path, true));
+            }
+
+            foreach (EditorBuildSettingsScene scene in EditorBuildSettings.scenes)
+            {
+                if (scene == null ||
+                    string.IsNullOrWhiteSpace(scene.path) ||
+                    Array.Exists(requiredPaths, path => path == scene.path))
+                {
+                    continue;
+                }
+
+                scenes.Add(scene);
+            }
+
+            EditorBuildSettings.scenes = scenes.ToArray();
         }
 
         [Serializable]

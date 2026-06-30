@@ -349,6 +349,22 @@ MonoBehaviour:
   statusText: {fileID: 620341102}
   evidenceCountText: {fileID: 1305081670}
   resolvedCountText: {fileID: 1870146023}
+  desktopCountdownText: {fileID: 0}
+  desktopCountdownFill: {fileID: 0}
+  totalCountdownHours: 72
+  hoursReducedPerCompletedLevel: 24
+  hoursReducedPerCompletedTicket: 0
+  desktopRiskText: {fileID: 0}
+  desktopRiskWarningIcon: {fileID: 0}
+  desktopRiskWarningSymbolText: {fileID: 0}
+  desktopRiskSegments: []
+  maxA07RiskValue: 80
+  mediumA07RiskThreshold: 24
+  highA07RiskThreshold: 56
+  lowA07RiskColor: {r: 0.55, g: 0.55, b: 0.55, a: 1}
+  mediumA07RiskColor: {r: 0.95, g: 0.78, b: 0.24, a: 1}
+  highA07RiskColor: {r: 0.88, g: 0.25, b: 0.32, a: 1}
+  inactiveA07RiskColor: {r: 0.23, g: 0.23, b: 0.23, a: 1}
   ticketTitleText: {fileID: 2033820688}
   ticketMetaText: {fileID: 1436318759}
   ticketIdText: {fileID: 881860075}
@@ -14428,6 +14444,9 @@ MonoBehaviour:
   stageDisplayNames:
   - "\u7B2C\u4E8C\u591C"
   titleSceneName: TitleScene
+  nextLevelSceneName: Level3Scene
+  endingSceneName: EndingScene
+  autoClearEndingLimit: 3
 --- !u!114 &1119582117
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -21696,7 +21715,7 @@ RectTransform:
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: -8}
-  m_SizeDelta: {x: 1500, y: 760}
+  m_SizeDelta: {x: 1840, y: 1000}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1583652277
 MonoBehaviour:
