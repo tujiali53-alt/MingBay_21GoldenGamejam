@@ -76,6 +76,11 @@ namespace MingBay.Core
         private readonly HashSet<int> retainedEvidenceIndices = new();
         private int currentFollowUpIndex;
         private bool transferAppliedForCurrentTicket;
+
+        /// <summary>
+        /// 在新阶段加载完成时触发。参数为当前阶段 ID。
+        /// </summary>
+        public event System.Action<string> StageChanged;
         private string pendingResultTitle;
         private string pendingResultText;
         private bool pendingEvidenceSaved;
@@ -153,6 +158,11 @@ namespace MingBay.Core
             currentStageIndex = -1;
             currentTicket = null;
 
+            string[] stageOrderDebug = GetConfiguredStageOrder();
+            Debug.Log($"[GameFlowManager] StartGame - stageOrder: [{string.Join(", ", stageOrderDebug)}], " +
+                      $"database: {(database != null ? database.name : "NULL")}, " +
+                      $"ticketCount: {(database != null ? database.TicketCount : 0)}");
+
             if (database.TicketCount <= 0)
             {
                 Debug.LogError("Demo 数据库中没有可用工单，请至少配置一条工单。", database);
@@ -183,6 +193,19 @@ namespace MingBay.Core
         private bool LoadNextStage()
         {
             string[] configuredStageOrder = GetConfiguredStageOrder();
+            string previousStageId = currentStageIndex >= 0 &&
+                                     currentStageIndex < configuredStageOrder.Length
+                ? configuredStageOrder[currentStageIndex]
+                : string.Empty;
+
+            // 离开教程阶段时重置指标。
+            if (!string.IsNullOrEmpty(previousStageId) &&
+                (previousStageId == "Stage_Tutorial" || previousStageId == "TUTORIAL"))
+            {
+                metricManager.ResetMetrics();
+                evidenceManager.ResetEvidence();
+            }
+
             while (++currentStageIndex < configuredStageOrder.Length)
             {
                 currentStageTickets.Clear();
@@ -200,6 +223,10 @@ namespace MingBay.Core
                 processedTickets = new bool[currentStageTickets.Count];
                 mainGameView.BuildTicketQueue(currentStageTickets);
                 ShowTicketSelection();
+                string currentStageId = configuredStageOrder[currentStageIndex];
+                Debug.Log($"[GameFlowManager] LoadNextStage - 加载阶段: {currentStageId}, " +
+                          $"工单数: {currentStageTickets.Count}, stageIndex: {currentStageIndex}");
+                StageChanged?.Invoke(currentStageId);
                 return true;
             }
 

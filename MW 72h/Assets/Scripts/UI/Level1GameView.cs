@@ -883,6 +883,7 @@ namespace MingBay.UI
 
             if (saveEvidenceButton != null)
             {
+                saveEvidenceButton.gameObject.SetActive(true);
                 saveEvidenceButton.interactable = true;
             }
         }
