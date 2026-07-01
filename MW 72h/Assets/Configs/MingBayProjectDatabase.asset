@@ -17,7 +17,11 @@ MonoBehaviour:
   - {fileID: 11400000, guid: cd80d0fe50d115d4dbbcdc604d71cab6, type: 2}
   - {fileID: 11400000, guid: a5e17aa9eead19c408c6ca9dd637be39, type: 2}
   - {fileID: 11400000, guid: a3fdd54d0f3d9db47b3df50bacb44193, type: 2}
+  - {fileID: 11400000, guid: 41d6ea428f0f3764cbed8a4e0497765d, type: 2}
+  - {fileID: 11400000, guid: 3fd77392232790b4dbb529d91155e571, type: 2}
   stageOrder:
+  - TUTORIAL
   - N1
   stageDisplayNames:
+  - "\u6559\u7A0B"
   - "\u7B2C\u4E00\u591C"
