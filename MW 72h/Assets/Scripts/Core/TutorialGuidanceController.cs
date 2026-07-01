@@ -23,8 +23,8 @@ namespace MingBay.Core
         [SerializeField] private TMP_Text guidanceText;
 
         [Header("游戏对象引用")]
-        [SerializeField] private MainGameView mainGameView;
-        [SerializeField] private GameFlowManager gameFlowManager;
+        [SerializeField] private Level1GameView mainGameView;
+        [SerializeField] private Level1GameFlowManager gameFlowManager;
 
         [Header("转场")]
         [SerializeField] private float fadeOutSeconds = 2f;
@@ -53,6 +53,10 @@ namespace MingBay.Core
         // 教程步骤中禁用高亮目标区域外的所有 Selectable（Button/Toggle/Slider 等），
         // 仅保留 MentorBubble 和高亮目标子树的可交互性。
         private readonly System.Collections.Generic.HashSet<Selectable> disabledSelectables = new();
+
+        // MentorBubble 原始父节点（用于教程结束后恢复位置）
+        private Transform mentorBubbleOriginalParent;
+        private int mentorBubbleOriginalSiblingIndex;
 
         // ── 按钮监听追踪系统 ──
         // 记录所有动态添加的按钮点击监听，确保在 EndAllGuidance() 或组件销毁时能够清理。
@@ -159,7 +163,19 @@ namespace MingBay.Core
             if (appWindow != null) appWindow.SetActive(false);
 
             RestoreMentorBubbleText();
-            if (mentorBubble != null) mentorBubble.SetActive(true);
+            if (mentorBubble != null)
+            {
+                // 保存原始位置，然后移到 Canvas 最上层确保教程对话框不被遮挡
+                mentorBubbleOriginalParent = mentorBubble.transform.parent;
+                mentorBubbleOriginalSiblingIndex = mentorBubble.transform.GetSiblingIndex();
+                Canvas canvas = mentorBubble.GetComponentInParent<Canvas>();
+                if (canvas != null)
+                {
+                    mentorBubble.transform.SetParent(canvas.transform, true);
+                    mentorBubble.transform.SetAsLastSibling();
+                }
+                mentorBubble.SetActive(true);
+            }
             HideHighlight();
 
             // 等待用户点击"工单队列"或"工单APP"
@@ -252,8 +268,23 @@ namespace MingBay.Core
             // 恢复所有被禁用的交互组件（修复 Issue2：退出教程后组件保持禁用）
             RestoreSelectables();
 
+            // 恢复 MentorBubble 原始位置
+            RestoreMentorBubblePosition();
+
             HideHighlight();
             HideMentorBubble();
+        }
+
+        private void RestoreMentorBubblePosition()
+        {
+            if (mentorBubble != null && mentorBubbleOriginalParent != null)
+            {
+                mentorBubble.transform.SetParent(mentorBubbleOriginalParent, true);
+                mentorBubble.transform.SetSiblingIndex(
+                    Mathf.Clamp(mentorBubbleOriginalSiblingIndex, 0,
+                        mentorBubbleOriginalParent.childCount - 1));
+                mentorBubbleOriginalParent = null;
+            }
         }
 
         private void EndGuidance()
