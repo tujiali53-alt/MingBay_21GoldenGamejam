@@ -3,6 +3,7 @@ using System.Collections;
 using MingBay.UI;
 using TMPro;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 namespace MingBay.Core
@@ -25,9 +26,6 @@ namespace MingBay.Core
         [Header("游戏对象引用")]
         [SerializeField] private Level1GameView mainGameView;
         [SerializeField] private Level1GameFlowManager gameFlowManager;
-
-        [Header("转场")]
-        [SerializeField] private float fadeOutSeconds = 2f;
 
         // 运行时状态
         private bool isTutorialStage;
@@ -301,7 +299,19 @@ namespace MingBay.Core
             if (tutorialTicketIndex == 1)
                 StartCoroutine(BeginTicket2QueueGuidance());
             else
-                StartCoroutine(FadeOutAndTransition());
+            {
+                EndAllGuidance();
+                StartCoroutine(ReturnToLevel1NextFrame());
+            }
+        }
+
+        /// <summary>
+        /// 工单2结算完成 → 用户关闭结果面板 → 等待一帧后返回第一关界面。
+        /// </summary>
+        private IEnumerator ReturnToLevel1NextFrame()
+        {
+            yield return null; // 等待一帧，确保结果面板关闭动画完成
+            SceneManager.LoadScene("Level1Scene");
         }
 
         // ── 步骤管理 ──
@@ -434,37 +444,6 @@ namespace MingBay.Core
                 if (s != null) s.interactable = true;
             }
             disabledSelectables.Clear();
-        }
-
-        // ── 渐变黑屏转场 ──
-
-        private IEnumerator FadeOutAndTransition()
-        {
-            HideHighlight();
-            HideMentorBubble();
-
-            Transform canvasParent = FindFirstObjectByType<Canvas>()?.transform;
-            if (canvasParent == null) canvasParent = transform.root;
-
-            GameObject fadeObj = new("TutorialFadeBlack");
-            fadeObj.transform.SetParent(canvasParent, false);
-            fadeObj.transform.SetAsLastSibling();
-            RectTransform fadeRect = fadeObj.AddComponent<RectTransform>();
-            fadeRect.anchorMin = Vector2.zero;
-            fadeRect.anchorMax = Vector2.one;
-            fadeRect.sizeDelta = Vector2.zero;
-            Image fadeImage = fadeObj.AddComponent<Image>();
-            fadeImage.color = new Color(0f, 0f, 0f, 0f);
-            fadeImage.raycastTarget = true;
-
-            float elapsed = 0f;
-            while (elapsed < fadeOutSeconds)
-            {
-                elapsed += Time.deltaTime;
-                fadeImage.color = new Color(0f, 0f, 0f, Mathf.Clamp01(elapsed / fadeOutSeconds));
-                yield return null;
-            }
-            Destroy(fadeObj);
         }
 
         // ── 高亮（Outline 组件，复用绿框实现手法）──
